@@ -2,10 +2,40 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createWriteStream } from 'node:fs';
+import { pipeline } from 'node:stream/promises';
+import { extract as tarExtract } from 'tar';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const projectRoot = path.resolve(__dirname, '..');
+
+// Node 24 LTS - Check https://nodejs.org/en/about/previous-releases
+// Update quarterly or when security patches released
+const NODE_VERSION = '24.13.0'; // Updated Jan 2026
+
+const PLATFORMS = {
+  'macos-arm64': {
+    nodeUrl: `https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-darwin-arm64.tar.gz`,
+    archiveExt: 'tar.gz',
+    nodeBinaryPath: 'bin/node', // Path within extracted archive
+  },
+  'macos-x64': {
+    nodeUrl: `https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-darwin-x64.tar.gz`,
+    archiveExt: 'tar.gz',
+    nodeBinaryPath: 'bin/node',
+  },
+  'linux-x64': {
+    nodeUrl: `https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.gz`,
+    archiveExt: 'tar.gz',
+    nodeBinaryPath: 'bin/node',
+  },
+  'win-x64': {
+    nodeUrl: `https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-win-x64.zip`,
+    archiveExt: 'zip',
+    nodeBinaryPath: 'node.exe', // Path within extracted archive
+  },
+};
 
 /**
  * Setup build directory structure
@@ -27,3 +57,74 @@ export async function setupDirectories(buildRoot = path.join(projectRoot, 'build
 
   return dirs;
 }
+
+/**
+ * Download Node binary for platform with caching
+ * @param {string} platform - Platform identifier (e.g., 'macos-arm64')
+ * @param {Object} config - Platform configuration
+ * @param {string} downloadsDir - Downloads directory path
+ * @returns {Promise<string>} Path to Node binary
+ */
+export async function downloadNodeBinary(platform, config, downloadsDir) {
+  const binaryPath = path.join(downloadsDir, `node-${platform}`);
+
+  // Check cache
+  try {
+    await fs.access(binaryPath);
+    console.log(`✓ Using cached Node binary: ${platform}`);
+    return binaryPath;
+  } catch {
+    // Not cached, download
+  }
+
+  console.log(`⬇ Downloading Node ${NODE_VERSION} for ${platform}...`);
+
+  const archivePath = path.join(downloadsDir, `node-${platform}.${config.archiveExt}`);
+
+  // Download archive
+  const response = await fetch(config.nodeUrl);
+  if (!response.ok) {
+    throw new Error(`Failed to download Node binary: ${response.statusText}`);
+  }
+
+  // Save archive
+  await pipeline(
+    response.body,
+    createWriteStream(archivePath)
+  );
+
+  // Extract Node binary
+  if (config.archiveExt === 'tar.gz') {
+    // Extract from tar.gz
+    const archiveName = `node-v${NODE_VERSION}-${platform === 'macos-arm64' ? 'darwin-arm64' : platform === 'macos-x64' ? 'darwin-x64' : 'linux-x64'}`;
+    await tarExtract({
+      file: archivePath,
+      cwd: downloadsDir,
+      filter: (filePath) => filePath.endsWith(config.nodeBinaryPath),
+    });
+
+    // Move binary to final location
+    const extractedPath = path.join(downloadsDir, archiveName, config.nodeBinaryPath);
+    await fs.rename(extractedPath, binaryPath);
+
+    // Cleanup
+    await fs.rm(path.join(downloadsDir, archiveName), { recursive: true, force: true });
+  } else {
+    // Handle .zip for Windows (TODO: implement when needed)
+    throw new Error('ZIP extraction not yet implemented');
+  }
+
+  // Make executable (Unix)
+  if (platform !== 'win-x64') {
+    await fs.chmod(binaryPath, 0o755);
+  }
+
+  // Remove archive
+  await fs.rm(archivePath);
+
+  console.log(`✓ Downloaded Node binary: ${platform}`);
+  return binaryPath;
+}
+
+// Export PLATFORMS for testing
+export { PLATFORMS };

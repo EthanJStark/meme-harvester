@@ -34,4 +34,28 @@ describe('build-bundles', () => {
     await expect(fs.access(dirs.tempDeps)).resolves.toBeUndefined();
     await expect(fs.access(dirs.bundles)).resolves.toBeUndefined();
   });
+
+  it('should download Node binary with caching', async () => {
+    const { downloadNodeBinary, PLATFORMS } = await import('../scripts/build-bundles.js');
+
+    const downloadsDir = path.join(testBuildDir, 'downloads');
+    await fs.mkdir(downloadsDir, { recursive: true });
+
+    const platform = 'macos-arm64';
+    const config = PLATFORMS[platform];
+
+    // First download
+    const binaryPath1 = await downloadNodeBinary(platform, config, downloadsDir);
+    expect(binaryPath1).toBe(path.join(downloadsDir, 'node-macos-arm64'));
+
+    const stats1 = await fs.stat(binaryPath1);
+    expect(stats1.isFile()).toBe(true);
+
+    // Second download should use cache (check modification time unchanged)
+    const binaryPath2 = await downloadNodeBinary(platform, config, downloadsDir);
+    const stats2 = await fs.stat(binaryPath2);
+
+    expect(binaryPath2).toBe(binaryPath1);
+    expect(stats2.mtime.getTime()).toBe(stats1.mtime.getTime());
+  }, 30000); // 30 second timeout for download
 });
