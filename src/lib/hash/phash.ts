@@ -1,4 +1,4 @@
-import { hash as sharpPhash } from 'sharp-phash';
+import sharpPhash from 'sharp-phash';
 import { logger } from '../../utils/logger.js';
 
 export interface HashResult {
