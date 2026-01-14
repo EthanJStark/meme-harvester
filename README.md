@@ -11,22 +11,129 @@ CLI tool to extract unique still images from videos using FFmpeg's freezedetect 
 
 ## Installation
 
+### Download Pre-built Bundle
+
+1. **Download for your platform** from [Releases](https://github.com/EthanJStark/meme-harvester/releases):
+   - macOS (Apple Silicon M1/M2/M3): `harvest-macos-arm64.tar.gz`
+   - macOS (Intel): `harvest-macos-x64.tar.gz`
+   - Linux x64: `harvest-linux-x64.tar.gz`
+   - Windows x64: `harvest-win-x64.zip`
+
+2. **Verify checksum** (recommended):
+   ```bash
+   # Download checksums file
+   curl -LO https://github.com/EthanJStark/meme-harvester/releases/download/v1.0.0/checksums.txt
+
+   # Verify (macOS/Linux)
+   sha256sum -c checksums.txt --ignore-missing
+
+   # Verify (Windows PowerShell)
+   Get-FileHash harvest-win-x64.zip -Algorithm SHA256
+   ```
+
+3. **Extract to recommended location**:
+
+   **macOS/Linux:**
+   ```bash
+   # User-local installation (recommended)
+   tar -xzf harvest-macos-arm64.tar.gz -C ~/.local/bin/
+
+   # Or system-wide (requires sudo)
+   sudo tar -xzf harvest-macos-arm64.tar.gz -C /opt/
+   ```
+
+   **Windows:**
+   ```powershell
+   # Extract to user directory
+   Expand-Archive harvest-win-x64.zip -DestinationPath $env:LOCALAPPDATA\
+   ```
+
+4. **Add to PATH** (optional but recommended):
+
+   **macOS/Linux (bash/zsh):**
+   ```bash
+   # Add to ~/.bashrc or ~/.zshrc
+   export PATH="$PATH:$HOME/.local/bin/harvest-macos-arm64"
+
+   # Reload shell
+   source ~/.bashrc  # or source ~/.zshrc
+   ```
+
+   **Windows:**
+   - Search "Environment Variables" in Start Menu
+   - Edit user PATH variable
+   - Add: `%LOCALAPPDATA%\harvest-win-x64`
+   - Restart terminal
+
+5. **Verify installation**:
+   ```bash
+   harvest --version
+   harvest --help
+   ```
+
 ### Prerequisites
 
-- **Node.js 24+** (LTS)
-- **FFmpeg** with `freezedetect` filter ([installation guide](https://ffmpeg.org/download.html))
+**FFmpeg 4.0+** is required. The `freezedetect` filter requires FFmpeg 4.0 or newer.
 
-### Install
+**Installation by platform:**
 
+- **macOS**:
+  ```bash
+  brew install ffmpeg
+  ```
+
+- **Windows**:
+  ```powershell
+  winget install ffmpeg
+  ```
+  Or download from [ffmpeg.org](https://ffmpeg.org/download.html)
+
+- **Linux (Debian/Ubuntu)**:
+  ```bash
+  sudo apt install ffmpeg
+  ```
+
+- **Linux (Fedora/RHEL)**:
+  ```bash
+  sudo dnf install ffmpeg
+  ```
+
+**Verify FFmpeg installation:**
 ```bash
-npm install -g meme-harvester
+ffmpeg -version
+# Should show version 4.0.0 or higher
 ```
 
-Or run directly:
+**Troubleshooting:**
+- If `harvest` reports FFmpeg not found, run `ffmpeg -version` to verify installation
+- Check PATH with `which ffmpeg` (Unix) or `where ffmpeg` (Windows)
+- Restart terminal after installing FFmpeg for PATH changes to take effect
+
+### Building from Source
+
+For contributors or advanced users:
 
 ```bash
-npx meme-harvester video.mp4
+# Clone repository
+git clone https://github.com/EthanJStark/meme-harvester.git
+cd meme-harvester
+
+# Install dependencies
+npm ci
+
+# Build TypeScript
+npm run build
+
+# Build bundles for all platforms
+npm run build:bundles
+
+# Or build specific platform
+npm run build:bundles -- --platform macos-arm64
+
+# Output: build/bundles/
 ```
+
+**Note:** Building bundles requires running on the target platform to ensure Sharp native binaries are correct. Use GitHub Actions for cross-platform builds.
 
 ## Usage
 
