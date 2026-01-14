@@ -15,7 +15,7 @@ jobs:
           - os: macos-14
             platform: macos-arm64
             archive_ext: tar.gz
-          - os: macos-13
+          - os: macos-15-intel
             platform: macos-x64
             archive_ext: tar.gz
           - os: ubuntu-latest
@@ -43,11 +43,11 @@ jobs:
       - name: Build TypeScript
         run: npm run build
 
-      - name: Install production dependencies (for Sharp binaries)
-        run: npm ci --production
-
       - name: Build bundle for ${{ matrix.platform }}
         run: npm run build:bundles -- --platform ${{ matrix.platform }}
+
+      - name: Install production dependencies (for Sharp binaries)
+        run: npm ci --production
 
       - name: Upload bundle artifact
         uses: actions/upload-artifact@v4
