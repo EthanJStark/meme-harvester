@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 import { Command } from 'commander';
 import type { Config } from './lib/types.js';
+import { runPipeline } from './lib/pipeline.js';
+import { setVerbose } from './utils/logger.js';
 
 export function parseArgs(argv: string[]): Config {
   const program = new Command();
@@ -39,12 +41,22 @@ export function parseArgs(argv: string[]): Config {
   };
 }
 
-// Main entry point (will be implemented later)
 async function main() {
-  const config = parseArgs(process.argv);
-  console.log('media-scan v1.0.0');
-  console.log('Configuration:', config);
-  console.log('Implementation coming in subsequent phases...');
+  try {
+    const config = parseArgs(process.argv);
+    setVerbose(config.verbose);
+
+    await runPipeline(config);
+  } catch (error: any) {
+    if (error.code === 'ENOENT' && error.path?.includes('ffmpeg')) {
+      console.error('Error: FFmpeg not found in PATH');
+      console.error('Please install FFmpeg: https://ffmpeg.org/download.html');
+      process.exit(1);
+    }
+
+    console.error('Fatal error:', error.message);
+    process.exit(1);
+  }
 }
 
 // Only run main if this is the entry point
