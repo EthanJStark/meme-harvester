@@ -126,5 +126,91 @@ export async function downloadNodeBinary(platform, config, downloadsDir) {
   return binaryPath;
 }
 
+/**
+ * Assemble bundle for a platform
+ * @param {string} platform - Platform identifier
+ * @param {string} nodeBinaryPath - Path to Node binary
+ * @param {string} bundlesDir - Bundles output directory
+ * @returns {Promise<string>} Path to bundle directory
+ */
+export async function assembleBundle(platform, nodeBinaryPath, bundlesDir) {
+  const bundleName = `harvest-${platform}`;
+  const bundleDir = path.join(bundlesDir, bundleName);
+
+  console.log(`📦 Assembling bundle: ${platform}`);
+
+  // Create bundle directory structure
+  await fs.mkdir(bundleDir, { recursive: true });
+  await fs.mkdir(path.join(bundleDir, 'bin'), { recursive: true });
+
+  // Copy Node binary
+  const targetNodePath = platform === 'win-x64'
+    ? path.join(bundleDir, 'bin', 'node.exe')
+    : path.join(bundleDir, 'bin', 'node');
+  await fs.copyFile(nodeBinaryPath, targetNodePath);
+
+  // Make executable on Unix
+  if (platform !== 'win-x64') {
+    await fs.chmod(targetNodePath, 0o755);
+  }
+
+  // Copy compiled TypeScript (dist/)
+  const distSource = path.join(projectRoot, 'dist');
+  const distTarget = path.join(bundleDir, 'dist');
+  await copyDirectory(distSource, distTarget);
+
+  // Copy production dependencies (node_modules/)
+  // NOTE: Must run on target platform to get correct Sharp binaries
+  const nodeModulesSource = path.join(projectRoot, 'node_modules');
+  const nodeModulesTarget = path.join(bundleDir, 'node_modules');
+  await copyDirectory(nodeModulesSource, nodeModulesTarget);
+
+  // Copy package.json
+  await fs.copyFile(
+    path.join(projectRoot, 'package.json'),
+    path.join(bundleDir, 'package.json')
+  );
+
+  // Copy launcher script
+  const launcherTemplate = platform === 'win-x64'
+    ? path.join(projectRoot, 'scripts', 'templates', 'harvest.bat')
+    : path.join(projectRoot, 'scripts', 'templates', 'harvest.sh');
+  const launcherTarget = platform === 'win-x64'
+    ? path.join(bundleDir, 'harvest.bat')
+    : path.join(bundleDir, 'harvest');
+
+  await fs.copyFile(launcherTemplate, launcherTarget);
+
+  // Make launcher executable on Unix
+  if (platform !== 'win-x64') {
+    await fs.chmod(launcherTarget, 0o755);
+  }
+
+  console.log(`✓ Bundle assembled: ${bundleName}`);
+  return bundleDir;
+}
+
+/**
+ * Recursively copy directory
+ * @param {string} src - Source directory
+ * @param {string} dest - Destination directory
+ */
+async function copyDirectory(src, dest) {
+  await fs.mkdir(dest, { recursive: true });
+
+  const entries = await fs.readdir(src, { withFileTypes: true });
+
+  for (const entry of entries) {
+    const srcPath = path.join(src, entry.name);
+    const destPath = path.join(dest, entry.name);
+
+    if (entry.isDirectory()) {
+      await copyDirectory(srcPath, destPath);
+    } else {
+      await fs.copyFile(srcPath, destPath);
+    }
+  }
+}
+
 // Export PLATFORMS for testing
 export { PLATFORMS };
