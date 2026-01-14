@@ -144,13 +144,54 @@ export async function downloadNodeBinary(platform, config, downloadsDir) {
 }
 
 /**
+ * Install production dependencies in temp directory
+ * @param {string} tempDepsDir - Temporary dependencies directory
+ * @param {string} nodeBinaryPath - Path to Node binary for this platform
+ * @returns {Promise<string>} Path to node_modules directory
+ */
+async function installProductionDeps(tempDepsDir, nodeBinaryPath) {
+  console.log('📦 Installing production dependencies...');
+
+  // Clean temp directory
+  await fs.rm(tempDepsDir, { recursive: true, force: true });
+  await fs.mkdir(tempDepsDir, { recursive: true });
+
+  // Copy package.json and package-lock.json to temp directory
+  await fs.copyFile(
+    path.join(projectRoot, 'package.json'),
+    path.join(tempDepsDir, 'package.json')
+  );
+  await fs.copyFile(
+    path.join(projectRoot, 'package-lock.json'),
+    path.join(tempDepsDir, 'package-lock.json')
+  );
+
+  // Install production dependencies using the Node binary for this platform
+  // This ensures Sharp binaries match the target platform
+  const { execa } = await import('execa');
+  await execa(nodeBinaryPath, [
+    '--no-warnings',
+    '--eval',
+    'require("child_process").execSync("npm ci --omit=dev --no-audit --no-fund", {stdio: "inherit", cwd: process.argv[1]})',
+    tempDepsDir
+  ], {
+    cwd: tempDepsDir,
+    stdio: 'inherit'
+  });
+
+  console.log('✓ Production dependencies installed');
+  return path.join(tempDepsDir, 'node_modules');
+}
+
+/**
  * Assemble bundle for a platform
  * @param {string} platform - Platform identifier
  * @param {string} nodeBinaryPath - Path to Node binary
  * @param {string} bundlesDir - Bundles output directory
+ * @param {string} tempDepsDir - Temporary dependencies directory
  * @returns {Promise<string>} Path to bundle directory
  */
-export async function assembleBundle(platform, nodeBinaryPath, bundlesDir) {
+export async function assembleBundle(platform, nodeBinaryPath, bundlesDir, tempDepsDir) {
   const bundleName = `harvest-${platform}`;
   const bundleDir = path.join(bundlesDir, bundleName);
 
@@ -176,9 +217,9 @@ export async function assembleBundle(platform, nodeBinaryPath, bundlesDir) {
   const distTarget = path.join(bundleDir, 'dist');
   await copyDirectory(distSource, distTarget);
 
-  // Copy production dependencies (node_modules/)
+  // Install and copy production dependencies (node_modules/)
   // NOTE: Must run on target platform to get correct Sharp binaries
-  const nodeModulesSource = path.join(projectRoot, 'node_modules');
+  const nodeModulesSource = await installProductionDeps(tempDepsDir, nodeBinaryPath);
   const nodeModulesTarget = path.join(bundleDir, 'node_modules');
   await copyDirectory(nodeModulesSource, nodeModulesTarget);
 
@@ -330,13 +371,8 @@ async function main(options = {}) {
     process.exit(1);
   }
 
-  // Verify production dependencies installed
-  try {
-    await fs.access(path.join(projectRoot, 'node_modules', 'sharp'));
-  } catch {
-    console.error('❌ Error: node_modules/ not found. Run "npm ci --production" first.');
-    process.exit(1);
-  }
+  // Note: Production dependencies will be installed for each platform
+  // during bundle assembly to ensure Sharp binaries match target platform
 
   const archivePaths = [];
 
@@ -349,7 +385,7 @@ async function main(options = {}) {
     const nodeBinary = await downloadNodeBinary(platform, config, dirs.downloads);
 
     // Assemble bundle
-    const bundleDir = await assembleBundle(platform, nodeBinary, dirs.bundles);
+    const bundleDir = await assembleBundle(platform, nodeBinary, dirs.bundles, dirs.tempDeps);
 
     // Create archive
     const archivePath = await createArchive(platform, bundleDir, dirs.bundles);

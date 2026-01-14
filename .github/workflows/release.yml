@@ -43,9 +43,6 @@ jobs:
       - name: Build TypeScript
         run: npm run build
 
-      - name: Install production dependencies (for Sharp binaries)
-        run: npm ci --production
-
       - name: Build bundle for ${{ matrix.platform }}
         run: npm run build:bundles -- --platform ${{ matrix.platform }}
 
