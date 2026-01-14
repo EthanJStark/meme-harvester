@@ -128,23 +128,23 @@ describe('yt-dlp Module', () => {
     });
 
     it('should reject file:// protocol URLs', async () => {
-      const mockTempDir = '/tmp/media-scan-test';
+      const mockTempDir = '/tmp/meme-harvester-test';
       await expect(downloadUrl('file:///etc/passwd', mockTempDir)).rejects.toThrow('Unsupported protocol: file:');
     });
 
     it('should reject localhost URLs', async () => {
-      const mockTempDir = '/tmp/media-scan-test';
+      const mockTempDir = '/tmp/meme-harvester-test';
       await expect(downloadUrl('http://localhost/video', mockTempDir)).rejects.toThrow('Private IP addresses are not allowed');
     });
 
     it('should reject private IP URLs', async () => {
-      const mockTempDir = '/tmp/media-scan-test';
+      const mockTempDir = '/tmp/meme-harvester-test';
       await expect(downloadUrl('http://192.168.1.1/video', mockTempDir)).rejects.toThrow('Private IP addresses are not allowed');
     });
 
     it('should use --restrict-filenames flag', async () => {
       const mockUrl = 'https://example.com/video';
-      const mockTempDir = '/tmp/media-scan-test';
+      const mockTempDir = '/tmp/meme-harvester-test';
 
       vi.mocked(execa).mockResolvedValueOnce({
         stdout: '',
@@ -166,7 +166,7 @@ describe('yt-dlp Module', () => {
 
     it('should timeout after 5 minutes', async () => {
       const mockUrl = 'https://example.com/slow';
-      const mockTempDir = '/tmp/media-scan-test';
+      const mockTempDir = '/tmp/meme-harvester-test';
 
       // Mock execa to simulate timeout
       const timeoutError = new Error('Timeout') as any;
@@ -180,7 +180,7 @@ describe('yt-dlp Module', () => {
 
     it('should include URL in timeout error message', async () => {
       const testUrl = 'https://example.com/huge-video';
-      const mockTempDir = '/tmp/media-scan-test';
+      const mockTempDir = '/tmp/meme-harvester-test';
 
       const timeoutError = new Error('Timeout') as any;
       timeoutError.timedOut = true;
@@ -191,7 +191,7 @@ describe('yt-dlp Module', () => {
 
     it('should throw error when multiple files are downloaded', async () => {
       const mockUrl = 'https://example.com/playlist';
-      const mockTempDir = '/tmp/media-scan-test';
+      const mockTempDir = '/tmp/meme-harvester-test';
 
       vi.mocked(execa).mockResolvedValueOnce({
         stdout: '',
@@ -208,7 +208,7 @@ describe('yt-dlp Module', () => {
 
     it('should list all filenames in multiple files error', async () => {
       const mockUrl = 'https://example.com/playlist';
-      const mockTempDir = '/tmp/media-scan-test';
+      const mockTempDir = '/tmp/meme-harvester-test';
 
       vi.mocked(execa).mockResolvedValueOnce({
         stdout: '',
