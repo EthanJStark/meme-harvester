@@ -8,6 +8,15 @@ import { ensureOutputDir, getStillPath, ensureStillsDir } from '../utils/fs.js';
 import { logger } from '../utils/logger.js';
 import type { Config, InputResult, Frame } from './types.js';
 import { join } from 'path';
+import { execa } from 'execa';
+
+async function validateFFmpeg(): Promise<void> {
+  try {
+    await execa('ffmpeg', ['-version']);
+  } catch (error) {
+    throw new Error('FFmpeg not found in PATH. Install from: https://ffmpeg.org/download.html');
+  }
+}
 
 export async function processVideo(
   inputPath: string,
@@ -85,6 +94,8 @@ export async function processVideo(
 }
 
 export async function runPipeline(config: Config): Promise<void> {
+  await validateFFmpeg();
+
   logger.info('media-scan v1.0.0');
   logger.info(`Output directory: ${config.output}`);
 
@@ -93,20 +104,33 @@ export async function runPipeline(config: Config): Promise<void> {
 
   // Process each input sequentially
   const results: InputResult[] = [];
+  const errors: Array<{ input: string; error: string }> = [];
+
   for (const input of config.inputs) {
     try {
       const result = await processVideo(input, config);
       results.push(result);
-    } catch (error) {
-      logger.error(`Failed to process ${input}:`, error);
-      throw error;
+    } catch (error: any) {
+      logger.error(`Failed to process ${input}: ${error.message}`);
+      errors.push({ input, error: error.message });
+
+      if (config.inputs.length === 1) {
+        throw error; // Re-throw if only one input
+      }
     }
   }
 
-  // Generate and write report
+  if (results.length === 0) {
+    throw new Error('All inputs failed to process');
+  }
+
   const report = generateReport(results);
   const reportPath = join(config.output, config.json);
   await writeReport(report, reportPath);
 
-  logger.info('Complete!');
+  if (errors.length > 0) {
+    logger.info(`Completed with ${errors.length} error(s)`);
+  } else {
+    logger.info('Complete!');
+  }
 }

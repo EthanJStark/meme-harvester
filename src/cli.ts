@@ -3,6 +3,31 @@ import { Command } from 'commander';
 import type { Config } from './lib/types.js';
 import { runPipeline } from './lib/pipeline.js';
 import { setVerbose } from './utils/logger.js';
+import { existsSync } from 'fs';
+
+async function validateConfig(config: Config): Promise<void> {
+  // Check inputs exist
+  for (const input of config.inputs) {
+    if (!existsSync(input)) {
+      throw new Error(`Input file not found: ${input}`);
+    }
+  }
+
+  // Check min-freeze is positive
+  if (config.minFreeze <= 0) {
+    throw new Error('--min-freeze must be positive');
+  }
+
+  // Check hash-distance is non-negative
+  if (config.hashDistance < 0) {
+    throw new Error('--hash-distance must be non-negative');
+  }
+
+  // Check format is valid
+  if (!['jpg', 'png'].includes(config.format)) {
+    throw new Error('--format must be jpg or png');
+  }
+}
 
 export function parseArgs(argv: string[]): Config {
   const program = new Command();
@@ -44,6 +69,7 @@ export function parseArgs(argv: string[]): Config {
 async function main() {
   try {
     const config = parseArgs(process.argv);
+    await validateConfig(config);
     setVerbose(config.verbose);
 
     await runPipeline(config);
