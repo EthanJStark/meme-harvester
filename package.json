@@ -12,7 +12,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "tsc --noEmit",
-    "package": "npm run build && pkg ."
+    "package": "npm run build && pkg .",
+    "build:bundles": "node scripts/build-bundles.js",
+    "build:bundles:clean": "rm -rf build/"
   },
   "pkg": {
     "targets": [

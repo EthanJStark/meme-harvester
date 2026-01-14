@@ -288,5 +288,88 @@ export async function generateChecksums(archivePaths, bundlesDir) {
   return checksumsPath;
 }
 
+/**
+ * Main build orchestration
+ * @param {Object} options - Build options
+ * @param {string} [options.platform] - Build specific platform only
+ */
+async function main(options = {}) {
+  console.log('🚀 Starting bundle build process\n');
+
+  const startTime = Date.now();
+
+  // Setup directories
+  const dirs = await setupDirectories();
+  console.log('');
+
+  // Determine platforms to build
+  const platformsToBuild = options.platform
+    ? [options.platform]
+    : Object.keys(PLATFORMS);
+
+  // Verify TypeScript is compiled
+  try {
+    await fs.access(path.join(projectRoot, 'dist', 'cli.js'));
+  } catch {
+    console.error('❌ Error: dist/ not found. Run "npm run build" first.');
+    process.exit(1);
+  }
+
+  // Verify production dependencies installed
+  try {
+    await fs.access(path.join(projectRoot, 'node_modules', 'sharp'));
+  } catch {
+    console.error('❌ Error: node_modules/ not found. Run "npm ci --production" first.');
+    process.exit(1);
+  }
+
+  const archivePaths = [];
+
+  // Build each platform
+  for (const platform of platformsToBuild) {
+    console.log('');
+    const config = PLATFORMS[platform];
+
+    // Download Node binary
+    const nodeBinary = await downloadNodeBinary(platform, config, dirs.downloads);
+
+    // Assemble bundle
+    const bundleDir = await assembleBundle(platform, nodeBinary, dirs.bundles);
+
+    // Create archive
+    const archivePath = await createArchive(platform, bundleDir, dirs.bundles);
+    archivePaths.push(archivePath);
+  }
+
+  console.log('');
+
+  // Generate checksums
+  await generateChecksums(archivePaths, dirs.bundles);
+
+  const duration = ((Date.now() - startTime) / 1000).toFixed(1);
+  console.log(`\n✅ Build complete in ${duration}s`);
+  console.log(`📦 Bundles: ${dirs.bundles}`);
+}
+
+// Parse CLI arguments
+const args = process.argv.slice(2);
+const options = {};
+
+for (let i = 0; i < args.length; i++) {
+  if (args[i] === '--platform' && args[i + 1]) {
+    options.platform = args[i + 1];
+    i++;
+  }
+}
+
+// Run if executed directly
+if (import.meta.url === `file://${process.argv[1]}`) {
+  main(options).catch((err) => {
+    console.error('\n❌ Build failed:', err.message);
+    console.error(err.stack);
+    process.exit(1);
+  });
+}
+
 // Export PLATFORMS for testing
 export { PLATFORMS };
