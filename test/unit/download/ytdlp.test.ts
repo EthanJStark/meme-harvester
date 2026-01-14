@@ -1,7 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { validateYtDlp, downloadUrl, isUrl } from '../../../src/lib/download/ytdlp.js';
 import { execa } from 'execa';
-import { readdir } from 'fs/promises';
+import { readdir, mkdtemp, writeFile, symlink, rm } from 'fs/promises';
+import { tmpdir } from 'os';
+import path from 'path';
 
 vi.mock('execa');
 vi.mock('fs/promises');
@@ -108,5 +110,27 @@ describe('yt-dlp Module', () => {
       const mockTempDir = '/tmp/media-scan-test';
       await expect(downloadUrl('http://192.168.1.1/video', mockTempDir)).rejects.toThrow('Private IP addresses are not allowed');
     });
+
+    it('should use --restrict-filenames flag', async () => {
+      const mockUrl = 'https://example.com/video';
+      const mockTempDir = '/tmp/media-scan-test';
+
+      vi.mocked(execa).mockResolvedValueOnce({
+        stdout: '',
+        stderr: '',
+        exitCode: 0
+      } as any);
+
+      vi.mocked(readdir).mockResolvedValueOnce(['video.mp4'] as any);
+
+      await downloadUrl(mockUrl, mockTempDir);
+
+      const execaCall = vi.mocked(execa).mock.calls[0];
+      const args = execaCall[1];
+      expect(args).toContain('--restrict-filenames');
+    });
+
+    // Note: Full symlink test would require integration testing
+    // For now, we'll add the path validation logic and verify it compiles
   });
 });

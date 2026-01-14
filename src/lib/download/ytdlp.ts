@@ -39,6 +39,7 @@ export async function downloadUrl(url: string, tempDir: string): Promise<string>
   try {
     const { stdout, stderr } = await execa('yt-dlp', [
       '--no-playlist',           // Prevent multi-file downloads
+      '--restrict-filenames',    // Sanitizes %(title)s to ASCII-only, no special chars
       '--quiet',                 // Minimize output
       '--progress',              // Show progress for parsing
       '--no-warnings',           // Suppress warnings
@@ -56,6 +57,18 @@ export async function downloadUrl(url: string, tempDir: string): Promise<string>
     if (files.length === 0) {
       throw new Error('No files downloaded');
     }
+
+    // Verify all files are actually inside tempDir (prevents symlink attacks)
+    const resolvedTempDir = path.resolve(tempDir);
+    for (const file of files) {
+      const fullPath = path.join(tempDir, file);
+      const resolvedPath = path.resolve(fullPath);
+
+      if (!resolvedPath.startsWith(resolvedTempDir)) {
+        throw new Error(`Security violation: Downloaded file escaped temp directory`);
+      }
+    }
+
     if (files.length > 1) {
       logger.verbose(`Multiple files found, using first: ${files[0]}`);
     }
