@@ -146,11 +146,11 @@ export async function downloadNodeBinary(platform, config, downloadsDir) {
 /**
  * Install production dependencies in temp directory
  * @param {string} tempDepsDir - Temporary dependencies directory
- * @param {string} nodeBinaryPath - Path to Node binary for this platform
+ * @param {string} platform - Platform identifier (for logging)
  * @returns {Promise<string>} Path to node_modules directory
  */
-async function installProductionDeps(tempDepsDir, nodeBinaryPath) {
-  console.log('📦 Installing production dependencies...');
+async function installProductionDeps(tempDepsDir, platform) {
+  console.log(`📦 Installing production dependencies for ${platform}...`);
 
   // Clean temp directory
   await fs.rm(tempDepsDir, { recursive: true, force: true });
@@ -166,15 +166,10 @@ async function installProductionDeps(tempDepsDir, nodeBinaryPath) {
     path.join(tempDepsDir, 'package-lock.json')
   );
 
-  // Install production dependencies using the Node binary for this platform
-  // This ensures Sharp binaries match the target platform
+  // Install production dependencies using system npm
+  // This ensures Sharp binaries match the current platform (GitHub Actions native runners)
   const { execa } = await import('execa');
-  await execa(nodeBinaryPath, [
-    '--no-warnings',
-    '--eval',
-    'require("child_process").execSync("npm ci --omit=dev --no-audit --no-fund", {stdio: "inherit", cwd: process.argv[1]})',
-    tempDepsDir
-  ], {
+  await execa('npm', ['ci', '--omit=dev', '--no-audit', '--no-fund'], {
     cwd: tempDepsDir,
     stdio: 'inherit'
   });
@@ -219,7 +214,7 @@ export async function assembleBundle(platform, nodeBinaryPath, bundlesDir, tempD
 
   // Install and copy production dependencies (node_modules/)
   // NOTE: Must run on target platform to get correct Sharp binaries
-  const nodeModulesSource = await installProductionDeps(tempDepsDir, nodeBinaryPath);
+  const nodeModulesSource = await installProductionDeps(tempDepsDir, platform);
   const nodeModulesTarget = path.join(bundleDir, 'node_modules');
   await copyDirectory(nodeModulesSource, nodeModulesTarget);
 
