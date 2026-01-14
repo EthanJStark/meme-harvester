@@ -7,6 +7,7 @@ import { pipeline } from 'node:stream/promises';
 import { extract as tarExtract } from 'tar';
 import archiver from 'archiver';
 import crypto from 'node:crypto';
+import AdmZip from 'adm-zip';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -112,8 +113,22 @@ export async function downloadNodeBinary(platform, config, downloadsDir) {
     // Cleanup
     await fs.rm(path.join(downloadsDir, archiveName), { recursive: true, force: true });
   } else {
-    // Handle .zip for Windows (TODO: implement when needed)
-    throw new Error('ZIP extraction not yet implemented');
+    // Handle .zip for Windows
+    const archiveName = `node-v${NODE_VERSION}-win-x64`;
+    const zip = new AdmZip(archivePath);
+    const zipEntries = zip.getEntries();
+
+    // Find node.exe in the zip
+    const nodeEntry = zipEntries.find(entry =>
+      entry.entryName.endsWith(config.nodeBinaryPath)
+    );
+
+    if (!nodeEntry) {
+      throw new Error(`node.exe not found in ${archivePath}`);
+    }
+
+    // Extract node.exe to final location
+    await fs.writeFile(binaryPath, nodeEntry.getData());
   }
 
   // Make executable (Unix)

@@ -43,11 +43,11 @@ jobs:
       - name: Build TypeScript
         run: npm run build
 
-      - name: Build bundle for ${{ matrix.platform }}
-        run: npm run build:bundles -- --platform ${{ matrix.platform }}
-
       - name: Install production dependencies (for Sharp binaries)
         run: npm ci --production
+
+      - name: Build bundle for ${{ matrix.platform }}
+        run: npm run build:bundles -- --platform ${{ matrix.platform }}
 
       - name: Upload bundle artifact
         uses: actions/upload-artifact@v4
@@ -79,7 +79,11 @@ jobs:
       - name: Generate checksums
         working-directory: release
         run: |
-          sha256sum *.tar.gz *.zip > checksums.txt
+          if ls *.tar.gz *.zip 1> /dev/null 2>&1; then
+            sha256sum *.tar.gz *.zip 2>/dev/null > checksums.txt || sha256sum * > checksums.txt
+          else
+            sha256sum * > checksums.txt
+          fi
           cat checksums.txt
 
       - name: Create GitHub Release
