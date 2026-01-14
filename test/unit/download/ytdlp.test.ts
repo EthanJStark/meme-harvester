@@ -14,18 +14,47 @@ describe('yt-dlp Module', () => {
   });
 
   describe('isUrl', () => {
-    it('should detect http:// URLs', () => {
-      expect(isUrl('http://example.com/video.mp4')).toBe(true);
+    describe('valid URLs', () => {
+      it('should return true for https URLs', () => {
+        expect(isUrl('https://example.com/video')).toBe(true);
+      });
+
+      it('should return true for http URLs', () => {
+        expect(isUrl('http://example.com/video')).toBe(true);
+      });
     });
 
-    it('should detect https:// URLs', () => {
-      expect(isUrl('https://www.youtube.com/watch?v=test')).toBe(true);
-    });
+    describe('invalid URLs', () => {
+      it('should return false for malformed URLs without hostname', () => {
+        expect(isUrl('http://')).toBe(false);
+      });
 
-    it('should reject file paths', () => {
-      expect(isUrl('/path/to/video.mp4')).toBe(false);
-      expect(isUrl('./video.mp4')).toBe(false);
-      expect(isUrl('video.mp4')).toBe(false);
+      it('should return false for URLs with spaces', () => {
+        expect(isUrl('https://evil .com/video')).toBe(false);
+      });
+
+      it('should return true for URLs with auth (validateUrl will catch security issues)', () => {
+        // isUrl() just checks if it's a valid URL, validateUrl() handles security
+        expect(isUrl('https://evil.com%00@localhost/video')).toBe(true);
+      });
+
+      it('should return false for ftp URLs', () => {
+        expect(isUrl('ftp://example.com/video')).toBe(false);
+      });
+
+      it('should return false for file URLs', () => {
+        expect(isUrl('file:///etc/passwd')).toBe(false);
+      });
+
+      it('should return false for plain text', () => {
+        expect(isUrl('not a url')).toBe(false);
+      });
+
+      it('should return false for file paths', () => {
+        expect(isUrl('/path/to/video.mp4')).toBe(false);
+        expect(isUrl('./video.mp4')).toBe(false);
+        expect(isUrl('video.mp4')).toBe(false);
+      });
     });
   });
 

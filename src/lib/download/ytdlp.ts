@@ -94,5 +94,16 @@ export async function downloadUrl(url: string, tempDir: string): Promise<string>
  * @returns true if the input is a URL
  */
 export function isUrl(input: string): boolean {
-  return input.startsWith('http://') || input.startsWith('https://');
+  // Quick protocol check first
+  if (!input.startsWith('http://') && !input.startsWith('https://')) {
+    return false;
+  }
+
+  // Validate with URL constructor
+  try {
+    new URL(input);
+    return true;
+  } catch {
+    return false;
+  }
 }
