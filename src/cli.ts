@@ -4,11 +4,12 @@ import type { Config } from './lib/types.js';
 import { runPipeline } from './lib/pipeline.js';
 import { setVerbose } from './utils/logger.js';
 import { existsSync } from 'fs';
+import { isUrl } from './lib/download/ytdlp.js';
 
 async function validateConfig(config: Config): Promise<void> {
-  // Check inputs exist
+  // Check inputs exist (skip validation for URLs)
   for (const input of config.inputs) {
-    if (!existsSync(input)) {
+    if (!isUrl(input) && !existsSync(input)) {
       throw new Error(`Input file not found: ${input}`);
     }
   }
@@ -33,12 +34,13 @@ export function parseArgs(argv: string[]): Config {
   const program = new Command();
 
   program
-    .name('media-scan')
+    .name('harvest')
     .description('Extract unique still images from videos using FFmpeg freezedetect')
     .version('1.0.0')
-    .argument('<input...>', 'input video file(s)')
-    .option('--output <dir>', 'output directory', './media-scan-output')
-    .option('--min-freeze <seconds>', 'minimum freeze duration (freezedetect d)', '2')
+    .argument('[input...]', 'input video file(s)')
+    .option('--url <url>', 'download and process video from URL (using yt-dlp)')
+    .option('--output <dir>', 'output directory', './meme-harvester-output')
+    .option('--min-freeze <seconds>', 'minimum freeze duration (freezedetect d)', '0.5')
     .option('--noise <dB>', 'freeze detection noise threshold (freezedetect n)', '-60dB')
     .option('--format <jpg|png>', 'output image format', 'jpg')
     .option('--hash <phash>', 'perceptual hash algorithm', 'phash')
@@ -50,7 +52,17 @@ export function parseArgs(argv: string[]): Config {
   program.parse(argv);
 
   const opts = program.opts();
-  const inputs = program.args;
+  const fileInputs = program.args;
+
+  // Validate mutually exclusive inputs
+  if (opts.url && fileInputs.length > 0) {
+    throw new Error('Cannot specify both --url and file inputs');
+  }
+  if (!opts.url && fileInputs.length === 0) {
+    throw new Error('Must specify either --url or file input(s)');
+  }
+
+  const inputs = opts.url ? [opts.url] : fileInputs;
 
   return {
     inputs,

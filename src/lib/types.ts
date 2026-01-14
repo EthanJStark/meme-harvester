@@ -36,6 +36,7 @@ export interface DedupeCluster {
  */
 export interface InputResult {
   path: string;
+  sourceUrl?: string; // URL origin if downloaded
   durationSec: number;
   videoStream: string;
   freezeDetect: {

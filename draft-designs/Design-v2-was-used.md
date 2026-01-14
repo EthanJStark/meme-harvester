@@ -1,4 +1,4 @@
-# Revised Implementation Plan: `media-scan` (Video Still Image Extraction)
+# Revised Implementation Plan: Meme Harvester (Video Still Image Extraction)
 
 This plan updates the original approach (sampled-frame differencing + custom pHash) by shifting *still detection* into FFmpeg and reusing existing OSS for perceptual hashing. It keeps the same high-level product goal: extract **unique still images** with a **JSON report**.
 
@@ -6,7 +6,7 @@ This plan updates the original approach (sampled-frame differencing + custom pHa
 
 ## Goals
 
-- CLI tool `media-scan` that:
+- CLI tool named `harvest` that:
   - Detects **frozen / still** spans in video.
   - Extracts representative image(s) for each still span.
   - De-duplicates extracted images (near-identical stills across time) using perceptual hashing.
@@ -126,13 +126,13 @@ Output:
 ### Command
 
 ```bash
-media-scan <input...> --output ./output [options]
+harvest <input...> --output ./output [options]
 ```
 
 ### Options (v1)
 
-- `--output <dir>`: output directory (default `./media-scan-output`)
-- `--min-freeze <seconds>`: freezedetect `d` (default `2`)
+- `--output <dir>`: output directory (default `./harvest-output`)
+- `--min-freeze <seconds>`: freezedetect `d` (default `0.5`)
 - `--noise <dB>`: freezedetect `n` (default `-60dB`)
 - `--format <jpg|png>`: output format (default `jpg`)
 - `--hash <phash>`: hashing algorithm (default `phash`)

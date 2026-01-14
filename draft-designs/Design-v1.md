@@ -2,7 +2,7 @@
 
 ## Summary
 
-Build a CLI tool (`media-scan`) that extracts unique still images from video files using frame differencing for detection and perceptual hashing for deduplication.
+Build a CLI tool (`harvest`) that extracts unique still images from video files using frame differencing for detection and perceptual hashing for deduplication.
 
 ## Design Document
 
