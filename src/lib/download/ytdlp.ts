@@ -2,6 +2,7 @@ import { execa } from 'execa';
 import { logger } from '../../utils/logger.js';
 import path from 'node:path';
 import fs from 'node:fs/promises';
+import { validateUrl } from './validation.js';
 
 /**
  * Validates that yt-dlp is installed and available in PATH
@@ -27,6 +28,9 @@ export async function validateYtDlp(): Promise<void> {
  * @throws {Error} If download fails
  */
 export async function downloadUrl(url: string, tempDir: string): Promise<string> {
+  // Validate URL before passing to yt-dlp
+  validateUrl(url);
+
   logger.verbose(`Downloading ${url} to ${tempDir}`);
 
   // Use output template for predictable filenames

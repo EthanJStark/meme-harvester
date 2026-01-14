@@ -93,5 +93,20 @@ describe('yt-dlp Module', () => {
 
       await expect(downloadUrl(mockUrl, mockTempDir)).rejects.toThrow('No files downloaded');
     });
+
+    it('should reject file:// protocol URLs', async () => {
+      const mockTempDir = '/tmp/media-scan-test';
+      await expect(downloadUrl('file:///etc/passwd', mockTempDir)).rejects.toThrow('Unsupported protocol: file:');
+    });
+
+    it('should reject localhost URLs', async () => {
+      const mockTempDir = '/tmp/media-scan-test';
+      await expect(downloadUrl('http://localhost/video', mockTempDir)).rejects.toThrow('Private IP addresses are not allowed');
+    });
+
+    it('should reject private IP URLs', async () => {
+      const mockTempDir = '/tmp/media-scan-test';
+      await expect(downloadUrl('http://192.168.1.1/video', mockTempDir)).rejects.toThrow('Private IP addresses are not allowed');
+    });
   });
 });
