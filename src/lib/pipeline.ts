@@ -9,6 +9,10 @@ import { logger } from '../utils/logger.js';
 import type { Config, InputResult, Frame } from './types.js';
 import { join } from 'path';
 import { execa } from 'execa';
+import { validateYtDlp, downloadUrl, isUrl } from './download/ytdlp.js';
+import { tmpdir } from 'os';
+import { mkdtemp, rm } from 'fs/promises';
+import { sep } from 'path';
 
 async function validateFFmpeg(): Promise<void> {
   try {
@@ -20,7 +24,8 @@ async function validateFFmpeg(): Promise<void> {
 
 export async function processVideo(
   inputPath: string,
-  config: Config
+  config: Config,
+  sourceUrl?: string
 ): Promise<InputResult> {
   logger.info(`Processing: ${inputPath}`);
 
@@ -36,6 +41,7 @@ export async function processVideo(
     logger.info('  No freeze intervals detected, skipping extraction');
     return {
       path: inputPath,
+      sourceUrl,
       durationSec: probe.durationSec,
       videoStream: probe.videoStream,
       freezeDetect: {
@@ -81,6 +87,7 @@ export async function processVideo(
 
   return {
     path: inputPath,
+    sourceUrl,
     durationSec: probe.durationSec,
     videoStream: probe.videoStream,
     freezeDetect: {
@@ -108,8 +115,26 @@ export async function runPipeline(config: Config): Promise<void> {
 
   for (const input of config.inputs) {
     try {
-      const result = await processVideo(input, config);
-      results.push(result);
+      if (isUrl(input)) {
+        // URL input: download, process, cleanup
+        await validateYtDlp();
+        const tempDir = await mkdtemp(join(tmpdir(), 'meme-harvester-'));
+        logger.info(`Created temp directory: ${tempDir}`);
+
+        try {
+          const downloadedPath = await downloadUrl(input, tempDir);
+          const result = await processVideo(downloadedPath, config, input);
+          results.push(result);
+        } finally {
+          // Always cleanup temp directory
+          logger.verbose(`Cleaning up temp directory: ${tempDir}`);
+          await rm(tempDir, { recursive: true, force: true });
+        }
+      } else {
+        // File input: process directly
+        const result = await processVideo(input, config);
+        results.push(result);
+      }
     } catch (error: any) {
       logger.error(`Failed to process ${input}: ${error.message}`);
       errors.push({ input, error: error.message });

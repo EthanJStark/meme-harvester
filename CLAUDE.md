@@ -28,6 +28,9 @@ npm run dev -- <input.mp4> [options]
 
 # Example: Process video with verbose output
 npm run dev -- test.mp4 --verbose --output ./out
+
+# Example: Process video from URL
+npm run dev -- --url https://www.youtube.com/watch?v=example --verbose
 ```
 
 ## Architecture
@@ -51,6 +54,8 @@ src/
 │   ├── pipeline.ts          # Main orchestration logic
 │   ├── types.ts             # Core TypeScript interfaces
 │   ├── report.ts            # JSON report generation
+│   ├── download/            # URL download via yt-dlp
+│   │   └── ytdlp.ts         # yt-dlp subprocess wrapper
 │   ├── ffmpeg/              # FFmpeg subprocess wrappers (execa)
 │   │   ├── probe.ts         # Video metadata extraction
 │   │   ├── freezedetect.ts  # Still interval detection
@@ -86,5 +91,12 @@ Tests live in `test/` directory (excluded from TypeScript build). Use Vitest for
 
 - **Node.js 24+** (LTS)
 - **FFmpeg** must be in PATH with freezedetect support
+- **yt-dlp** (optional) - Required only for URL downloads via `--url` option
 
-Validate FFmpeg availability with: `ffmpeg -version`
+Validate prerequisites with:
+```bash
+ffmpeg -version
+yt-dlp --version  # Only needed for URL downloads
+```
+
+Install yt-dlp: https://github.com/yt-dlp/yt-dlp
