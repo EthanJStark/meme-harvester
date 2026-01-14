@@ -45,7 +45,9 @@ export async function downloadUrl(url: string, tempDir: string): Promise<string>
       '--no-warnings',           // Suppress warnings
       '-o', outputTemplate,      // Output template
       url
-    ]);
+    ], {
+      timeout: 300000  // 5 minutes
+    });
 
     logger.verbose(`yt-dlp output: ${stdout}`);
     if (stderr) {
@@ -78,6 +80,9 @@ export async function downloadUrl(url: string, tempDir: string): Promise<string>
 
     return downloadedPath;
   } catch (error) {
+    if (error && typeof error === 'object' && 'timedOut' in error && error.timedOut) {
+      throw new Error(`Download timed out after 5 minutes: ${url}`);
+    }
     const message = error instanceof Error ? error.message : String(error);
     throw new Error(`Failed to download ${url}: ${message}`);
   }

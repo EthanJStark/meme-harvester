@@ -69,7 +69,9 @@ describe('yt-dlp Module', () => {
       expect(execa).toHaveBeenCalledWith('yt-dlp', expect.arrayContaining([
         '--no-playlist',
         mockUrl
-      ]));
+      ]), expect.objectContaining({
+        timeout: 300000
+      }));
     });
 
     it('should throw if download fails', async () => {
@@ -132,5 +134,30 @@ describe('yt-dlp Module', () => {
 
     // Note: Full symlink test would require integration testing
     // For now, we'll add the path validation logic and verify it compiles
+
+    it('should timeout after 5 minutes', async () => {
+      const mockUrl = 'https://example.com/slow';
+      const mockTempDir = '/tmp/media-scan-test';
+
+      // Mock execa to simulate timeout
+      const timeoutError = new Error('Timeout') as any;
+      timeoutError.timedOut = true;
+      vi.mocked(execa).mockRejectedValueOnce(timeoutError);
+
+      await expect(downloadUrl(mockUrl, mockTempDir)).rejects.toThrow(
+        'Download timed out after 5 minutes'
+      );
+    });
+
+    it('should include URL in timeout error message', async () => {
+      const testUrl = 'https://example.com/huge-video';
+      const mockTempDir = '/tmp/media-scan-test';
+
+      const timeoutError = new Error('Timeout') as any;
+      timeoutError.timedOut = true;
+      vi.mocked(execa).mockRejectedValueOnce(timeoutError);
+
+      await expect(downloadUrl(testUrl, mockTempDir)).rejects.toThrow(testUrl);
+    });
   });
 });
