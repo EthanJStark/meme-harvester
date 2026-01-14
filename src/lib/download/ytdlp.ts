@@ -28,8 +28,8 @@ export async function validateYtDlp(): Promise<void> {
  * @throws {Error} If download fails
  */
 export async function downloadUrl(url: string, tempDir: string): Promise<string> {
-  // Validate URL before passing to yt-dlp
-  validateUrl(url);
+  // Validate URL for security (SSRF protection)
+  await validateUrl(url);
 
   logger.verbose(`Downloading ${url} to ${tempDir}`);
 
