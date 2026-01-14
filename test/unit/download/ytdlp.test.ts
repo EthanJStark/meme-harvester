@@ -188,5 +188,39 @@ describe('yt-dlp Module', () => {
 
       await expect(downloadUrl(testUrl, mockTempDir)).rejects.toThrow(testUrl);
     });
+
+    it('should throw error when multiple files are downloaded', async () => {
+      const mockUrl = 'https://example.com/playlist';
+      const mockTempDir = '/tmp/media-scan-test';
+
+      vi.mocked(execa).mockResolvedValueOnce({
+        stdout: '',
+        stderr: '',
+        exitCode: 0
+      } as any);
+
+      vi.mocked(readdir).mockResolvedValueOnce(['video1.mp4', 'video2.mp4', 'video3.mp4'] as any);
+
+      await expect(downloadUrl(mockUrl, mockTempDir)).rejects.toThrow(
+        'Expected 1 file but got 3 files'
+      );
+    });
+
+    it('should list all filenames in multiple files error', async () => {
+      const mockUrl = 'https://example.com/playlist';
+      const mockTempDir = '/tmp/media-scan-test';
+
+      vi.mocked(execa).mockResolvedValueOnce({
+        stdout: '',
+        stderr: '',
+        exitCode: 0
+      } as any);
+
+      vi.mocked(readdir).mockResolvedValueOnce(['video1.mp4', 'video2.mp4'] as any);
+
+      await expect(downloadUrl(mockUrl, mockTempDir)).rejects.toThrow(
+        'video1.mp4, video2.mp4'
+      );
+    });
   });
 });

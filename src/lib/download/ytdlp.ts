@@ -71,8 +71,13 @@ export async function downloadUrl(url: string, tempDir: string): Promise<string>
       }
     }
 
+    // Fail loudly if multiple files downloaded
     if (files.length > 1) {
-      logger.verbose(`Multiple files found, using first: ${files[0]}`);
+      const fileList = files.join(', ');
+      throw new Error(
+        `Expected 1 file but got ${files.length} files: ${fileList}. ` +
+        `This may indicate a yt-dlp configuration issue.`
+      );
     }
 
     const downloadedPath = path.join(tempDir, files[0]);
