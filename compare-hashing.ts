@@ -7,9 +7,27 @@
 import { computeHash } from './src/lib/hash/phash.js';
 import { deduplicateFrames } from './src/lib/hash/dedupe.js';
 import { readdir } from 'fs/promises';
+import { existsSync } from 'fs';
 import { join } from 'path';
+import path from 'path';
 
-const TRAINING_SET_DIR = '/Users/ethan.stark/dev/misc/media-scan/llm/training-set-1';
+/**
+ * Training set directory for hashing comparison.
+ * Set TRAINING_SET_DIR environment variable or create llm/training-set-1 in project root.
+ */
+const TRAINING_SET_DIR = process.env.TRAINING_SET_DIR ||
+  path.join(process.cwd(), 'llm/training-set-1');
+
+if (!existsSync(TRAINING_SET_DIR)) {
+  console.error(`❌ Training set directory not found: ${TRAINING_SET_DIR}`);
+  console.error('');
+  console.error('Options:');
+  console.error('  1. Create the directory: mkdir -p llm/training-set-1');
+  console.error('  2. Set environment variable: TRAINING_SET_DIR=/path/to/your/training-set');
+  console.error('');
+  process.exit(1);
+}
+
 const HAMMING_THRESHOLD = 5;
 
 async function main() {
