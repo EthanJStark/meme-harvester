@@ -132,7 +132,7 @@ harvest <input...> --output ./output [options]
 ### Options (v1)
 
 - `--output <dir>`: output directory (default `./harvest-output`)
-- `--min-freeze <seconds>`: freezedetect `d` (default `2`)
+- `--min-freeze <seconds>`: freezedetect `d` (default `0.5`)
 - `--noise <dB>`: freezedetect `n` (default `-60dB`)
 - `--format <jpg|png>`: output format (default `jpg`)
 - `--hash <phash>`: hashing algorithm (default `phash`)

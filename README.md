@@ -50,7 +50,7 @@ Arguments:
 
 Options:
   --output <dir>         Output directory (default: ./harvest-output)
-  --min-freeze <sec>     Minimum freeze duration in seconds (default: 2)
+  --min-freeze <sec>     Minimum freeze duration in seconds (default: 0.5)
   --noise <dB>           Freeze detection noise threshold (default: -60dB)
   --format <jpg|png>     Output image format (default: jpg)
   --hash-distance <int>  Hamming distance threshold for deduplication (default: 6)
