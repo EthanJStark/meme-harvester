@@ -5,6 +5,8 @@ import { fileURLToPath } from 'node:url';
 import { createWriteStream } from 'node:fs';
 import { pipeline } from 'node:stream/promises';
 import { extract as tarExtract } from 'tar';
+import archiver from 'archiver';
+import crypto from 'node:crypto';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -210,6 +212,80 @@ async function copyDirectory(src, dest) {
       await fs.copyFile(srcPath, destPath);
     }
   }
+}
+
+/**
+ * Create compressed archive for bundle
+ * @param {string} platform - Platform identifier
+ * @param {string} bundleDir - Bundle directory path
+ * @param {string} bundlesDir - Bundles output directory
+ * @returns {Promise<string>} Path to archive file
+ */
+export async function createArchive(platform, bundleDir, bundlesDir) {
+  const bundleName = path.basename(bundleDir);
+  const isWindows = platform === 'win-x64';
+  const ext = isWindows ? 'zip' : 'tar.gz';
+  const archivePath = path.join(bundlesDir, `${bundleName}.${ext}`);
+
+  console.log(`📦 Creating archive: ${bundleName}.${ext}`);
+
+  const output = createWriteStream(archivePath);
+  const archive = archiver(isWindows ? 'zip' : 'tar', {
+    gzip: !isWindows,
+    gzipOptions: { level: 9 },
+  });
+
+  // Handle errors
+  archive.on('error', (err) => {
+    throw err;
+  });
+
+  // Pipe archive to file
+  archive.pipe(output);
+
+  // Add bundle directory to archive
+  archive.directory(bundleDir, bundleName);
+
+  // Finalize archive
+  await archive.finalize();
+
+  // Wait for stream to finish
+  await new Promise((resolve, reject) => {
+    output.on('close', resolve);
+    output.on('error', reject);
+  });
+
+  const sizeKB = ((await fs.stat(archivePath)).size / 1024).toFixed(0);
+  console.log(`✓ Archive created: ${bundleName}.${ext} (${sizeKB} KB)`);
+
+  return archivePath;
+}
+
+/**
+ * Generate SHA256 checksums for all archives
+ * @param {string[]} archivePaths - Array of archive file paths
+ * @param {string} bundlesDir - Bundles output directory
+ * @returns {Promise<string>} Path to checksums file
+ */
+export async function generateChecksums(archivePaths, bundlesDir) {
+  console.log('🔐 Generating checksums...');
+
+  const checksums = [];
+
+  for (const archivePath of archivePaths) {
+    const hash = crypto.createHash('sha256');
+    const fileBuffer = await fs.readFile(archivePath);
+    hash.update(fileBuffer);
+    const checksum = hash.digest('hex');
+    const filename = path.basename(archivePath);
+    checksums.push(`${checksum}  ${filename}`);
+  }
+
+  const checksumsPath = path.join(bundlesDir, 'checksums.txt');
+  await fs.writeFile(checksumsPath, checksums.join('\n') + '\n');
+
+  console.log(`✓ Checksums generated: checksums.txt`);
+  return checksumsPath;
 }
 
 // Export PLATFORMS for testing
