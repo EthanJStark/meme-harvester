@@ -1,4 +1,4 @@
-# media-scan
+# Meme Harvester
 
 CLI tool to extract unique still images from videos using FFmpeg's freezedetect filter and perceptual hashing.
 
@@ -19,13 +19,13 @@ CLI tool to extract unique still images from videos using FFmpeg's freezedetect 
 ### Install
 
 ```bash
-npm install -g media-scan
+npm install -g meme-harvester
 ```
 
 Or run directly:
 
 ```bash
-npx media-scan video.mp4
+npx meme-harvester video.mp4
 ```
 
 ## Usage
@@ -33,23 +33,23 @@ npx media-scan video.mp4
 ### Basic
 
 ```bash
-media-scan video.mp4
+harvest video.mp4
 ```
 
-Outputs to `./media-scan-output/`:
+Outputs to `./meme-harvester-output/`:
 - `stills/video/*.jpg` - Extracted still images
 - `report.json` - Processing report with metadata
 
 ### Options
 
 ```
-media-scan <input...> [options]
+harvest <input...> [options]
 
 Arguments:
   input                  Input video file(s)
 
 Options:
-  --output <dir>         Output directory (default: ./media-scan-output)
+  --output <dir>         Output directory (default: ./harvest-output)
   --min-freeze <sec>     Minimum freeze duration in seconds (default: 2)
   --noise <dB>           Freeze detection noise threshold (default: -60dB)
   --format <jpg|png>     Output image format (default: jpg)
@@ -65,22 +65,22 @@ Options:
 
 **Process multiple videos:**
 ```bash
-media-scan video1.mp4 video2.mp4 --output ./output
+harvest video1.mp4 video2.mp4 --output ./output
 ```
 
 **High sensitivity detection (shorter freezes):**
 ```bash
-media-scan video.mp4 --min-freeze 1 --noise -50dB
+harvest video.mp4 --min-freeze 1 --noise -50dB
 ```
 
 **PNG output with loose deduplication:**
 ```bash
-media-scan video.mp4 --format png --hash-distance 10
+harvest video.mp4 --format png --hash-distance 10
 ```
 
 **Verbose mode for debugging:**
 ```bash
-media-scan video.mp4 --verbose
+harvest video.mp4 --verbose
 ```
 
 ## Report Schema

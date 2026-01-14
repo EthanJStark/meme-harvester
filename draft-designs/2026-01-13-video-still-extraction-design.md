@@ -75,17 +75,17 @@ Image → Resize to 8x8 → Convert to grayscale →
 
 ```bash
 # Basic usage
-media-scan ./video.mp4
+harvest ./video.mp4
 
 # With options
-media-scan ./video.mp4 \
+harvest ./video.mp4 \
   --output ./stills \
   --sample-rate 2 \
   --min-duration 1.0 \
   --format png
 
 # Multiple files
-media-scan ./video1.mp4 ./video2.mp4 --output ./all-stills
+harvest ./video1.mp4 ./video2.mp4 --output ./all-stills
 ```
 
 ## Output Format
@@ -131,7 +131,7 @@ media-scan ./video1.mp4 ./video2.mp4 --output ./all-stills
 ## Project Structure
 
 ```
-media-scan/
+harvest/
 ├── src/
 │   ├── index.ts          # CLI entry point
 │   ├── analyzer.ts       # Frame extraction & still detection

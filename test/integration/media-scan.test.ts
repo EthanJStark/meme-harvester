@@ -10,10 +10,10 @@ import { deduplicateFrames } from '../../src/lib/hash/dedupe.js';
 import { ensureOutputDir, getStillPath, ensureStillsDir } from '../../src/utils/fs.js';
 import type { Frame } from '../../src/lib/types.js';
 
-const FIXTURE_PATH = '/tmp/media-scan-fixture.mp4';
-const OUTPUT_DIR = '/tmp/media-scan-integration-test';
+const FIXTURE_PATH = '/tmp/meme-harvester-fixture.mp4';
+const OUTPUT_DIR = '/tmp/meme-harvester-integration-test';
 
-describe('Media Scan Integration', () => {
+describe('Meme Harvester Integration', () => {
   beforeAll(async () => {
     await generateFixtureVideo(FIXTURE_PATH);
   }, 60000); // 60s timeout for video generation

@@ -4,7 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-CLI tool for extracting unique still images from videos using FFmpeg's `freezedetect` filter and perceptual hashing. Built with TypeScript as an ESM package.
+**Meme Harvester** - CLI tool for extracting unique still images from videos using FFmpeg's `freezedetect` filter and perceptual hashing. Built with TypeScript as an ESM package.
+
+The CLI command is `harvest`.
 
 ## Development Commands
 

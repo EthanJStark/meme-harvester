@@ -96,7 +96,7 @@ export async function processVideo(
 export async function runPipeline(config: Config): Promise<void> {
   await validateFFmpeg();
 
-  logger.info('media-scan v1.0.0');
+  logger.info('Meme Harvester v1.0.0');
   logger.info(`Output directory: ${config.output}`);
 
   // Ensure output directory exists

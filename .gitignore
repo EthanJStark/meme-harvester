@@ -2,7 +2,8 @@ node_modules/
 dist/
 *.log
 .DS_Store
-media-scan-output/
+meme-harvester-output/
 media/
 llm/
 .worktrees/
+dist-pkg/

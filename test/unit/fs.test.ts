@@ -3,7 +3,7 @@ import { mkdir, rm } from 'fs/promises';
 import { ensureOutputDir, getStillsDir, getStillPath } from '../../src/utils/fs.js';
 import { existsSync } from 'fs';
 
-const TEST_DIR = '/tmp/media-scan-test';
+const TEST_DIR = '/tmp/meme-harvester-test';
 
 describe('File System Utilities', () => {
   beforeEach(async () => {

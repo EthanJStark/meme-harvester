@@ -33,11 +33,11 @@ export function parseArgs(argv: string[]): Config {
   const program = new Command();
 
   program
-    .name('media-scan')
+    .name('harvest')
     .description('Extract unique still images from videos using FFmpeg freezedetect')
     .version('1.0.0')
     .argument('<input...>', 'input video file(s)')
-    .option('--output <dir>', 'output directory', './media-scan-output')
+    .option('--output <dir>', 'output directory', './meme-harvester-output')
     .option('--min-freeze <seconds>', 'minimum freeze duration (freezedetect d)', '0.5')
     .option('--noise <dB>', 'freeze detection noise threshold (freezedetect n)', '-60dB')
     .option('--format <jpg|png>', 'output image format', 'jpg')
