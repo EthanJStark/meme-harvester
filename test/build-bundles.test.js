@@ -58,4 +58,23 @@ describe('build-bundles', () => {
     expect(binaryPath2).toBe(binaryPath1);
     expect(stats2.mtime.getTime()).toBe(stats1.mtime.getTime());
   }, 30000); // 30 second timeout for download
+
+  it('should run when executed directly (entry point detection)', async () => {
+    // This test verifies the entry point detection works cross-platform
+    // The script should produce output when run directly
+    const { execa } = await import('execa');
+    const scriptPath = path.join(projectRoot, 'scripts', 'build-bundles.js');
+
+    // Run the script with a 3 second timeout - just need to verify it starts
+    const result = await execa('node', [scriptPath], {
+      reject: false, // Don't throw on non-zero exit
+      cwd: projectRoot,
+      timeout: 3000,
+      killSignal: 'SIGTERM',
+    });
+
+    // Should produce the initial startup message OR an error about missing dist/
+    // Either proves the entry point detection worked
+    expect(result.stdout + result.stderr).toMatch(/Starting bundle build process|dist.*not found/);
+  }, 10000); // 10 second test timeout
 });

@@ -409,7 +409,9 @@ for (let i = 0; i < args.length; i++) {
 }
 
 // Run if executed directly
-if (import.meta.url === `file://${process.argv[1]}`) {
+// Use cross-platform comparison: process.argv[1] contains native paths (backslashes on Windows)
+// while import.meta.url is always a file:// URL. Compare as file paths, not URLs.
+if (process.argv[1] === __filename) {
   main(options).catch((err) => {
     console.error('\n❌ Build failed:', err.message);
     console.error(err.stack);
