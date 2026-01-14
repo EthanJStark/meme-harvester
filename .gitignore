@@ -7,3 +7,6 @@ media/
 llm/
 .worktrees/
 dist-pkg/
+
+# Bundle build artifacts
+build/
