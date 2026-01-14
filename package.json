@@ -1,17 +1,31 @@
 {
-  "name": "media-scan",
+  "name": "meme-harvester",
   "version": "1.0.0",
   "type": "module",
   "main": "index.js",
   "bin": {
-    "media-scan": "./dist/cli.js"
+    "harvest": "./dist/cli.js"
   },
   "scripts": {
     "build": "tsc",
     "dev": "tsx src/cli.ts",
     "test": "vitest run",
     "test:watch": "vitest",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "package": "npm run build && pkg ."
+  },
+  "pkg": {
+    "targets": [
+      "node18-macos-arm64",
+      "node18-macos-x64",
+      "node18-linux-x64",
+      "node18-win-x64"
+    ],
+    "outputPath": "dist-pkg",
+    "assets": [
+      "node_modules/sharp/**/*.node",
+      "node_modules/@img/**/*.node"
+    ]
   },
   "keywords": [],
   "author": "",
@@ -25,6 +39,7 @@
   },
   "devDependencies": {
     "@types/node": "^25.0.8",
+    "pkg": "^5.8.1",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
     "vitest": "^4.0.17"
