@@ -31,26 +31,35 @@ export async function getNextScanNumber(
 }
 
 export async function ensureOutputDir(outputDir: string): Promise<void> {
-  await mkdir(join(outputDir, 'stills'), { recursive: true });
+  await mkdir(outputDir, { recursive: true });
 }
 
-export function getStillsDir(outputDir: string, videoPath: string): string {
+export function getStillsDir(
+  outputDir: string,
+  videoPath: string,
+  scanNumber: number
+): string {
   const videoName = basename(videoPath, extname(videoPath));
-  return join(outputDir, 'stills', videoName);
+  return join(outputDir, videoName, String(scanNumber));
 }
 
 export function getStillPath(
   outputDir: string,
   videoPath: string,
-  index: number,
+  scanNumber: number,
+  frameIndex: number,
   format: 'jpg' | 'png'
 ): string {
-  const stillsDir = getStillsDir(outputDir, videoPath);
-  const filename = `still_${String(index).padStart(4, '0')}.${format}`;
+  const stillsDir = getStillsDir(outputDir, videoPath, scanNumber);
+  const filename = `still_${String(frameIndex).padStart(4, '0')}.${format}`;
   return join(stillsDir, filename);
 }
 
-export async function ensureStillsDir(outputDir: string, videoPath: string): Promise<void> {
-  const stillsDir = getStillsDir(outputDir, videoPath);
+export async function ensureStillsDir(
+  outputDir: string,
+  videoPath: string,
+  scanNumber: number
+): Promise<void> {
+  const stillsDir = getStillsDir(outputDir, videoPath, scanNumber);
   await mkdir(stillsDir, { recursive: true });
 }

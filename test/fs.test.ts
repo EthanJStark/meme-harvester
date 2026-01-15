@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { readFileSync } from 'fs';
+import { readFileSync, existsSync } from 'fs';
 import { mkdir, rm } from 'fs/promises';
 import { join } from 'path';
-import { getNextScanNumber } from '../src/utils/fs.js';
+import { getNextScanNumber, getStillsDir, getStillPath, ensureStillsDir } from '../src/utils/fs.js';
 
 describe('gitignore configuration', () => {
   it('should include OUTPUT/ directory', () => {
@@ -57,5 +57,53 @@ describe('getNextScanNumber', () => {
     await mkdir(join(testOutputDir, videoName, '2'), { recursive: true });
     const scanNumber = await getNextScanNumber(testOutputDir, videoName);
     expect(scanNumber).toBe(3);
+  });
+});
+
+describe('getStillsDir', () => {
+  it('should return OUTPUT/<video-name>/<scan-number>/', () => {
+    const dir = getStillsDir('OUTPUT', 'test.mp4', 1);
+    expect(dir).toBe(join('OUTPUT', 'test', '1'));
+  });
+
+  it('should strip video extension', () => {
+    const dir = getStillsDir('OUTPUT', 'my-video.mp4', 2);
+    expect(dir).toBe(join('OUTPUT', 'my-video', '2'));
+  });
+
+  it('should handle video names with multiple dots', () => {
+    const dir = getStillsDir('OUTPUT', 'video.test.mp4', 3);
+    expect(dir).toBe(join('OUTPUT', 'video.test', '3'));
+  });
+});
+
+describe('getStillPath', () => {
+  it('should return correct path with jpg format', () => {
+    const path = getStillPath('OUTPUT', 'test.mp4', 1, 1, 'jpg');
+    expect(path).toBe(join('OUTPUT', 'test', '1', 'still_0001.jpg'));
+  });
+
+  it('should return correct path with png format', () => {
+    const path = getStillPath('OUTPUT', 'test.mp4', 2, 5, 'png');
+    expect(path).toBe(join('OUTPUT', 'test', '2', 'still_0005.png'));
+  });
+
+  it('should pad frame index with zeros', () => {
+    const path = getStillPath('OUTPUT', 'video.mp4', 1, 123, 'jpg');
+    expect(path).toBe(join('OUTPUT', 'video', '1', 'still_0123.jpg'));
+  });
+});
+
+describe('ensureStillsDir', () => {
+  const testOutputDir = join(process.cwd(), 'test-output-dirs');
+
+  afterEach(async () => {
+    await rm(testOutputDir, { recursive: true, force: true });
+  });
+
+  it('should create output directory structure', async () => {
+    await ensureStillsDir(testOutputDir, 'test.mp4', 1);
+    const expectedPath = join(testOutputDir, 'test', '1');
+    expect(existsSync(expectedPath)).toBe(true);
   });
 });
