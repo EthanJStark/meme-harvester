@@ -1,6 +1,34 @@
-import { mkdir } from 'fs/promises';
+import { mkdir, readdir } from 'fs/promises';
 import { basename, extname, join } from 'path';
 import { existsSync } from 'fs';
+
+export async function getNextScanNumber(
+  outputDir: string,
+  videoName: string
+): Promise<number> {
+  const videoDir = join(outputDir, videoName);
+
+  if (!existsSync(videoDir)) {
+    return 1;
+  }
+
+  try {
+    const entries = await readdir(videoDir, { withFileTypes: true });
+    const scanNumbers = entries
+      .filter(entry => entry.isDirectory())
+      .map(entry => parseInt(entry.name, 10))
+      .filter(num => !isNaN(num) && num > 0);
+
+    if (scanNumbers.length === 0) {
+      return 1;
+    }
+
+    return Math.max(...scanNumbers) + 1;
+  } catch (error) {
+    // Directory doesn't exist or can't be read
+    return 1;
+  }
+}
 
 export async function ensureOutputDir(outputDir: string): Promise<void> {
   await mkdir(join(outputDir, 'stills'), { recursive: true });
