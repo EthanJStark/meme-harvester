@@ -39,7 +39,7 @@ export function parseArgs(argv: string[]): Config {
     .version('1.0.0')
     .argument('[input...]', 'input video file(s)')
     .option('--url <url>', 'download and process video from URL (using yt-dlp)')
-    .option('--output <dir>', 'output directory', './meme-harvester-output')
+    .option('--output <dir>', 'output directory', 'OUTPUT')
     .option('--min-freeze <seconds>', 'minimum freeze duration (freezedetect d)', '0.5')
     .option('--noise <dB>', 'freeze detection noise threshold (freezedetect n)', '-60dB')
     .option('--format <jpg|png>', 'output image format', 'jpg')
