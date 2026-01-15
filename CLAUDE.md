@@ -8,6 +8,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 The CLI command is `harvest`.
 
+**Output Structure:** Files are written to `OUTPUT/<video-name>/<scan-number>/` where scan numbers increment automatically (1, 2, 3...) for each run. This allows comparing results across multiple scans with different parameters.
+
 ## Development Commands
 
 ```bash
@@ -26,12 +28,42 @@ npm run lint
 # Run CLI in development
 npm run dev -- <input.mp4> [options]
 
-# Example: Process video with verbose output
-npm run dev -- test.mp4 --verbose --output ./out
+# Example: Process video with verbose output (writes to OUTPUT/test/1/)
+npm run dev -- test.mp4 --verbose
+
+# Example: Second scan with different parameters (writes to OUTPUT/test/2/)
+npm run dev -- test.mp4 --min-freeze 1.0 --verbose
+
+# Example: Custom output directory
+npm run dev -- test.mp4 --output ./my-output
 
 # Example: Process video from URL
 npm run dev -- --url https://www.youtube.com/watch?v=example --verbose
 ```
+
+## Architecture
+
+### Output Directory Structure
+
+```
+OUTPUT/
+├── video-name/
+│   ├── 1/              # First scan
+│   │   ├── still_0001.jpg
+│   │   ├── still_0002.jpg
+│   │   └── report.json
+│   ├── 2/              # Second scan (different parameters)
+│   │   ├── still_0001.jpg
+│   │   ├── still_0002.jpg
+│   │   └── report.json
+│   └── 3/              # Third scan
+│       └── ...
+└── another-video/
+    └── 1/
+        └── ...
+```
+
+Scan numbers increment automatically based on existing directories. The `OUTPUT/` directory is gitignored.
 
 ## Architecture
 
