@@ -98,9 +98,17 @@ async function main() {
 }
 
 // Only run main if this is the entry point
-if (import.meta.url === `file://${process.argv[1]}`) {
-  main().catch(error => {
-    console.error('Fatal error:', error);
-    process.exit(1);
-  });
+// Handle different execution contexts (direct execution, wrapper scripts, etc.)
+if (import.meta.url.startsWith('file://')) {
+  const modulePath = new URL(import.meta.url).pathname;
+  const scriptPath = process.argv[1];
+
+  // Match if paths are identical or if module path ends with script path
+  // This handles both direct execution and wrapper script execution
+  if (modulePath === scriptPath || scriptPath?.endsWith('cli.js')) {
+    main().catch(error => {
+      console.error('Fatal error:', error);
+      process.exit(1);
+    });
+  }
 }
