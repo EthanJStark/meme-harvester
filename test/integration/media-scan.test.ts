@@ -33,14 +33,14 @@ describe('Meme Harvester Integration', () => {
     const intervals = await detectFreezeIntervals(FIXTURE_PATH, 2, '-60dB');
 
     await ensureOutputDir(OUTPUT_DIR);
-    await ensureStillsDir(OUTPUT_DIR, FIXTURE_PATH);
+    await ensureStillsDir(OUTPUT_DIR, FIXTURE_PATH, 1);
 
     const frames: Frame[] = [];
 
     for (let i = 0; i < intervals.length; i++) {
       const interval = intervals[i];
       const timestamp = calculateTimestamp(interval.startSec, interval.endSec, probe.durationSec);
-      const outputPath = getStillPath(OUTPUT_DIR, FIXTURE_PATH, i + 1, 'jpg');
+      const outputPath = getStillPath(OUTPUT_DIR, FIXTURE_PATH, 1, i + 1, 'jpg');
 
       await extractFrame(FIXTURE_PATH, timestamp, outputPath, 'jpg');
       expect(existsSync(outputPath)).toBe(true);

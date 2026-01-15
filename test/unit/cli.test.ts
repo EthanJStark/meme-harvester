@@ -10,7 +10,7 @@ describe('CLI', () => {
 
   it('should use default output directory', () => {
     const config = parseArgs(['node', 'harvest', 'video.mp4']);
-    expect(config.output).toBe('./meme-harvester-output');
+    expect(config.output).toBe('OUTPUT');
   });
 
   it('should parse min-freeze option', () => {

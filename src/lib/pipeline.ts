@@ -4,10 +4,16 @@ import { extractFrame, calculateTimestamp } from './ffmpeg/extract.js';
 import { computeHash } from './hash/phash.js';
 import { deduplicateFrames } from './hash/dedupe.js';
 import { generateReport, writeReport } from './report.js';
-import { ensureOutputDir, getStillPath, ensureStillsDir } from '../utils/fs.js';
+import {
+  ensureOutputDir,
+  getStillPath,
+  ensureStillsDir,
+  getNextScanNumber,
+  getStillsDir
+} from '../utils/fs.js';
 import { logger } from '../utils/logger.js';
 import type { Config, InputResult, Frame } from './types.js';
-import { join } from 'path';
+import { basename, extname, join } from 'path';
 import { execa } from 'execa';
 import { validateYtDlp, downloadUrl, isUrl } from './download/ytdlp.js';
 import { tmpdir } from 'os';
@@ -29,6 +35,11 @@ export async function processVideo(
 ): Promise<InputResult> {
   logger.info(`Processing: ${inputPath}`);
 
+  // Determine scan number
+  const videoName = basename(inputPath, extname(inputPath));
+  const scanNumber = await getNextScanNumber(config.output, videoName);
+  logger.info(`  Scan number: ${scanNumber}`);
+
   // 1. Probe video
   const probe = await probeVideo(inputPath);
   logger.info(`  Duration: ${probe.durationSec}s, Stream: ${probe.videoStream}`);
@@ -42,6 +53,7 @@ export async function processVideo(
     return {
       path: inputPath,
       sourceUrl,
+      scanNumber,
       durationSec: probe.durationSec,
       videoStream: probe.videoStream,
       freezeDetect: {
@@ -55,25 +67,30 @@ export async function processVideo(
   }
 
   // 3. Ensure stills directory
-  await ensureStillsDir(config.output, inputPath);
+  await ensureStillsDir(config.output, inputPath, scanNumber);
 
   // 4. Extract and hash frames
   const frames: Frame[] = [];
+  const stillsDir = getStillsDir(config.output, inputPath, scanNumber);
+
   for (let i = 0; i < intervals.length; i++) {
     const interval = intervals[i];
     const timestamp = calculateTimestamp(interval.startSec, interval.endSec, probe.durationSec);
-    const outputPath = getStillPath(config.output, inputPath, i + 1, config.format);
+    const outputPath = getStillPath(config.output, inputPath, scanNumber, i + 1, config.format);
 
     logger.info(`  Extracting frame ${i + 1}/${intervals.length} at ${timestamp.toFixed(2)}s`);
     await extractFrame(inputPath, timestamp, outputPath, config.format);
 
     const hashResult = await computeHash(outputPath);
 
+    // Calculate relative path from output root
+    const relativePath = outputPath.replace(config.output + '/', '');
+
     frames.push({
       id: `frm_${String(i + 1).padStart(3, '0')}`,
       intervalId: interval.id,
       timestampSec: timestamp,
-      file: outputPath.replace(config.output + '/', ''), // relative path
+      file: relativePath,
       hash: hashResult.hash,
       hashAlgo: hashResult.hashAlgo,
       hashBits: hashResult.hashBits,
@@ -88,6 +105,7 @@ export async function processVideo(
   return {
     path: inputPath,
     sourceUrl,
+    scanNumber,
     durationSec: probe.durationSec,
     videoStream: probe.videoStream,
     freezeDetect: {
@@ -149,8 +167,19 @@ export async function runPipeline(config: Config): Promise<void> {
     throw new Error('All inputs failed to process');
   }
 
+  // Write report to scan-specific directory for single input
+  // For multiple inputs, write to output root
+  let reportPath: string;
+  if (results.length === 1) {
+    const result = results[0];
+    const videoName = basename(result.path, extname(result.path));
+    const scanDir = join(config.output, videoName, String(result.scanNumber));
+    reportPath = join(scanDir, config.json);
+  } else {
+    reportPath = join(config.output, config.json);
+  }
+
   const report = generateReport(results);
-  const reportPath = join(config.output, config.json);
   await writeReport(report, reportPath);
 
   if (errors.length > 0) {

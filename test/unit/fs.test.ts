@@ -17,16 +17,15 @@ describe('File System Utilities', () => {
   it('should create output directory structure', async () => {
     await ensureOutputDir(TEST_DIR);
     expect(existsSync(TEST_DIR)).toBe(true);
-    expect(existsSync(`${TEST_DIR}/stills`)).toBe(true);
   });
 
-  it('should get stills directory for video', () => {
-    const dir = getStillsDir(TEST_DIR, '/path/to/video.mp4');
-    expect(dir).toBe(`${TEST_DIR}/stills/video`);
+  it('should get stills directory for video with scan number', () => {
+    const dir = getStillsDir(TEST_DIR, '/path/to/video.mp4', 1);
+    expect(dir).toBe(`${TEST_DIR}/video/1`);
   });
 
-  it('should generate still path with number', () => {
-    const path = getStillPath(TEST_DIR, '/path/to/video.mp4', 1, 'jpg');
-    expect(path).toBe(`${TEST_DIR}/stills/video/still_0001.jpg`);
+  it('should generate still path with scan number', () => {
+    const path = getStillPath(TEST_DIR, '/path/to/video.mp4', 1, 1, 'jpg');
+    expect(path).toBe(`${TEST_DIR}/video/1/still_0001.jpg`);
   });
 });
