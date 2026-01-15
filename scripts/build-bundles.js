@@ -346,31 +346,21 @@ export async function generateChecksums(archivePaths, bundlesDir) {
  */
 async function main(options = {}) {
   console.log('🚀 Starting bundle build process\n');
-  console.log('=== DIAGNOSTIC: Entry point reached ===');
-  console.log('Platform:', process.platform);
-  console.log('Node version:', process.version);
-  console.log('Working directory:', process.cwd());
-  console.log('Options:', JSON.stringify(options));
 
   const startTime = Date.now();
 
   // Setup directories
-  console.log('\n=== DIAGNOSTIC: Setting up directories ===');
   const dirs = await setupDirectories();
-  console.log('Directories created:', JSON.stringify(dirs, null, 2));
   console.log('');
 
   // Determine platforms to build
   const platformsToBuild = options.platform
     ? [options.platform]
     : Object.keys(PLATFORMS);
-  console.log('=== DIAGNOSTIC: Platforms to build:', platformsToBuild.join(', '), '===');
 
   // Verify TypeScript is compiled
-  console.log('=== DIAGNOSTIC: Verifying TypeScript compiled ===');
   try {
     await fs.access(path.join(projectRoot, 'dist', 'cli.js'));
-    console.log('✓ dist/cli.js found');
   } catch {
     console.error('❌ Error: dist/ not found. Run "npm run build" first.');
     process.exit(1);
@@ -384,48 +374,20 @@ async function main(options = {}) {
   // Build each platform
   for (const platform of platformsToBuild) {
     console.log('');
-    console.log(`=== DIAGNOSTIC: Starting build for ${platform} ===`);
     const config = PLATFORMS[platform];
 
     // Download Node binary
-    console.log(`=== DIAGNOSTIC: Downloading Node binary for ${platform} ===`);
     const nodeBinary = await downloadNodeBinary(platform, config, dirs.downloads);
-    console.log(`✓ Node binary ready: ${nodeBinary}`);
 
     // Assemble bundle
-    console.log(`=== DIAGNOSTIC: Assembling bundle for ${platform} ===`);
     const bundleDir = await assembleBundle(platform, nodeBinary, dirs.bundles, dirs.tempDeps);
-    console.log(`✓ Bundle directory: ${bundleDir}`);
-
-    // Verify bundle directory exists and list contents
-    console.log(`=== DIAGNOSTIC: Verifying bundle directory ${bundleDir} ===`);
-    try {
-      const bundleContents = await fs.readdir(bundleDir);
-      console.log(`Bundle contents (${bundleContents.length} items):`, bundleContents.join(', '));
-    } catch (err) {
-      console.error(`❌ Failed to read bundle directory: ${err.message}`);
-    }
 
     // Create archive
-    console.log(`=== DIAGNOSTIC: Creating archive for ${platform} ===`);
     const archivePath = await createArchive(platform, bundleDir, dirs.bundles);
-    console.log(`✓ Archive created: ${archivePath}`);
-    
-    // Verify archive exists
-    console.log(`=== DIAGNOSTIC: Verifying archive ${archivePath} ===`);
-    try {
-      const stats = await fs.stat(archivePath);
-      console.log(`Archive size: ${(stats.size / 1024).toFixed(0)} KB`);
-    } catch (err) {
-      console.error(`❌ Archive verification failed: ${err.message}`);
-    }
-    
     archivePaths.push(archivePath);
   }
 
   console.log('');
-  console.log('=== DIAGNOSTIC: All platforms built ===');
-  console.log('Archive paths:', archivePaths.map(p => path.basename(p)).join(', '));
 
   // Generate checksums
   await generateChecksums(archivePaths, dirs.bundles);
@@ -433,14 +395,6 @@ async function main(options = {}) {
   const duration = ((Date.now() - startTime) / 1000).toFixed(1);
   console.log(`\n✅ Build complete in ${duration}s`);
   console.log(`📦 Bundles: ${dirs.bundles}`);
-  
-  console.log('\n=== DIAGNOSTIC: Final directory listing ===');
-  try {
-    const bundlesContents = await fs.readdir(dirs.bundles);
-    console.log('Files in bundles directory:', bundlesContents.join(', '));
-  } catch (err) {
-    console.error(`Failed to list bundles directory: ${err.message}`);
-  }
 }
 
 // Parse CLI arguments
@@ -457,23 +411,12 @@ for (let i = 0; i < args.length; i++) {
 // Run if executed directly
 // Use cross-platform comparison: process.argv[1] contains native paths (backslashes on Windows)
 // while import.meta.url is always a file:// URL. Compare as file paths, not URLs.
-console.log('=== DIAGNOSTIC: Entry point check ===');
-console.log('process.argv[0]:', process.argv[0]);
-console.log('process.argv[1]:', process.argv[1]);
-console.log('__filename:', __filename);
-console.log('import.meta.url:', import.meta.url);
-console.log('Comparison result:', process.argv[1] === __filename);
-
 if (process.argv[1] === __filename) {
-  console.log('=== DIAGNOSTIC: Entry point check PASSED, running main() ===');
   main(options).catch((err) => {
     console.error('\n❌ Build failed:', err.message);
     console.error(err.stack);
     process.exit(1);
   });
-} else {
-  console.log('=== DIAGNOSTIC: Entry point check FAILED, script will not run ===');
-  console.log('This is likely being imported as a module rather than executed directly');
 }
 
 // Export PLATFORMS for testing
