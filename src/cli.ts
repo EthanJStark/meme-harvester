@@ -5,8 +5,16 @@ import { runPipeline } from './lib/pipeline.js';
 import { setVerbose } from './utils/logger.js';
 import { existsSync } from 'fs';
 import { isUrl } from './lib/download/ytdlp.js';
+import { validateOutputPath } from './utils/fs.js';
 
 async function validateConfig(config: Config): Promise<void> {
+  // Validate output path
+  try {
+    validateOutputPath(process.cwd(), config.output);
+  } catch (error: any) {
+    throw new Error(`Invalid output path: ${error.message}`);
+  }
+
   // Check inputs exist (skip validation for URLs and channel mode)
   if (config.inputs) {
     for (const input of config.inputs) {
