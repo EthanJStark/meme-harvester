@@ -3,6 +3,7 @@ import { detectFreezeIntervals } from './ffmpeg/freezedetect.js';
 import { extractFrame, calculateTimestamp } from './ffmpeg/extract.js';
 import { computeHash } from './hash/phash.js';
 import { deduplicateFrames } from './hash/dedupe.js';
+import { classifyFrames } from './classify/classify.js';
 import { generateReport, writeReport } from './report.js';
 import {
   ensureOutputDir,
@@ -137,6 +138,34 @@ export async function processVideo(
   // 5. Deduplicate
   const clusters = deduplicateFrames(frames, config.hashDistance);
   logger.info(`  Deduplication: ${frames.length} frames -> ${clusters.length} unique`);
+
+  // 6. Classification (optional)
+  if (config.classify) {
+    logger.info('  Running classification...');
+
+    const classifications = await classifyFrames(stillsDir, frames);
+
+    // Update frames with classification results
+    for (const frame of frames) {
+      const framePath = join(config.output, frame.file);
+      const result = classifications.get(framePath);
+      if (result) {
+        frame.classification = {
+          label: result.label,
+          confidence: result.confidence
+        };
+      } else {
+        frame.classification = null;
+      }
+    }
+
+    // Log summary
+    const keepCount = frames.filter(f => f.classification?.label === 'keep').length;
+    const excludeCount = frames.filter(f => f.classification?.label === 'exclude').length;
+    const nullCount = frames.filter(f => f.classification === null).length;
+
+    logger.info(`  Classification: ${keepCount} keep, ${excludeCount} exclude, ${nullCount} unclassified`);
+  }
 
   return {
     path: inputPath,

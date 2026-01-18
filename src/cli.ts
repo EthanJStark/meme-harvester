@@ -57,7 +57,8 @@ export function parseArgs(argv: string[]): Config {
     .option('--hash-distance <int>', 'Hamming distance threshold for deduplication', '6')
     .option('--keep-duplicates', 'write duplicate images (not just canonicals)', false)
     .option('--json <filename>', 'report filename', 'report.json')
-    .option('--verbose', 'log FFmpeg commands and detailed output', false);
+    .option('--verbose', 'log FFmpeg commands and detailed output', false)
+    .option('--classify', 'run ML classification on extracted frames', false);
 
   program.parse(argv);
 
@@ -111,7 +112,8 @@ export function parseArgs(argv: string[]): Config {
     hashDistance: parseInt(opts.hashDistance, 10),
     keepDuplicates: opts.keepDuplicates,
     json: opts.json,
-    verbose: opts.verbose
+    verbose: opts.verbose,
+    classify: opts.classify
   };
 }
 

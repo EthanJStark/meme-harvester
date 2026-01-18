@@ -39,8 +39,8 @@ export async function classifyBatch(
 ): Promise<Map<string, ClassificationResult>> {
   // Check if model exists
   if (!checkModelExists()) {
-    logger.warn('Classifier model not found at models/classifier.pkl');
-    logger.warn('Skipping classification. Run python/train_classifier.py to create model.');
+    logger.info('Classifier model not found at models/classifier.pkl');
+    logger.info('Skipping classification. Run python/train_classifier.py to create model.');
     return new Map();
   }
 
@@ -48,7 +48,7 @@ export async function classifyBatch(
   const scriptPath = 'python/classify_images.py';
 
   if (!existsSync(scriptPath)) {
-    logger.warn(`Classification script not found: ${scriptPath}`);
+    logger.info(`Classification script not found: ${scriptPath}`);
     return new Map();
   }
 
@@ -85,7 +85,7 @@ export async function classifyBatch(
       }
     }
 
-    logger.warn('Classification failed, continuing without classification data');
+    logger.info('Classification failed, continuing without classification data');
     logger.verbose(`Error: ${error instanceof Error ? error.message : String(error)}`);
     return new Map();
   }
