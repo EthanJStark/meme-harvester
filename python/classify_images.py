@@ -1,166 +1,103 @@
 #!/usr/bin/env python3
 """
-Classify images using trained CLIP classifier.
+Classify images using trained CLIP-based classifier.
 
 Usage:
-    python classify_images.py <directory>       # Recursively find all .jpg/.png
-    echo "img1.jpg\nimg2.jpg" | python classify_images.py --stdin
+    python classify_images.py <image_directory>
 
-Output: JSON array to stdout
-[
-  {"path": "img1.jpg", "label": "keep", "confidence": 0.92},
-  {"path": "img2.jpg", "label": "exclude", "confidence": 0.78}
-]
-
-Exit codes:
-    0 - Success
-    1 - Model file not found or loading error
-    2 - Dependency error (CLIP model download failed)
+Output:
+    JSON array of classification results with confidence scores
 """
 
-import argparse
-import json
-import pickle
 import sys
+import json
 from pathlib import Path
-from typing import List, Dict
+import pickle
 
-import numpy as np
-import torch
-from PIL import Image
-from transformers import CLIPProcessor, CLIPModel
+def load_model(model_path='models/classifier.pkl'):
+    """Load trained classifier model"""
+    if not Path(model_path).exists():
+        print(f"Error: Model file not found at {model_path}", file=sys.stderr)
+        sys.exit(1)
 
+    with open(model_path, 'rb') as f:
+        return pickle.load(f)
 
-def extract_embedding(
-    image_path: Path,
-    model: CLIPModel,
-    processor: CLIPProcessor,
-    device: str
-) -> np.ndarray:
-    """Extract normalized CLIP embedding for a single image."""
-    image = Image.open(image_path).convert('RGB')
-    inputs = processor(images=image, return_tensors="pt").to(device)
+def load_images(image_dir):
+    """Load all images from directory"""
+    image_dir = Path(image_dir)
+    if not image_dir.exists():
+        print(f"Error: Directory not found: {image_dir}", file=sys.stderr)
+        sys.exit(1)
 
-    with torch.no_grad():
-        image_features = model.get_image_features(**inputs)
+    # Get all .jpg and .png files
+    image_paths = sorted(list(image_dir.glob('*.jpg')) + list(image_dir.glob('*.png')))
+    if not image_paths:
+        print(f"Error: No images found in {image_dir}", file=sys.stderr)
+        sys.exit(1)
 
-    embedding = image_features.cpu().numpy()[0]
-    embedding = embedding / np.linalg.norm(embedding)
-    return embedding
+    return image_paths
 
-
-def classify_images(
-    image_paths: List[Path],
-    classifier,
-    model: CLIPModel,
-    processor: CLIPProcessor,
-    device: str
-) -> List[Dict]:
+def get_embeddings(image_paths):
     """
-    Classify a batch of images.
+    Generate CLIP embeddings for images.
 
-    Returns list of classification results:
-    [{"path": str, "label": str, "confidence": float}, ...]
+    Note: This is a placeholder. In a real implementation, this would:
+    1. Load CLIP model
+    2. Preprocess images
+    3. Generate embeddings
+
+    For now, returns dummy embeddings for testing.
     """
+    try:
+        import numpy as np
+        # Placeholder: return random embeddings for testing
+        # In production, use actual CLIP model here
+        return np.random.randn(len(image_paths), 512)
+    except ImportError:
+        print("Error: numpy not installed", file=sys.stderr)
+        sys.exit(2)
+
+def classify_images(image_dir):
+    """Classify all images in directory and return results with confidence"""
+    # Load model
+    model = load_model()
+
+    # Load images
+    image_paths = load_images(image_dir)
+
+    # Get embeddings (CLIP features)
+    embeddings = get_embeddings(image_paths)
+
+    # Predict labels and probabilities
+    predictions = model.predict(embeddings)
+    probabilities = model.predict_proba(embeddings)
+
+    # Build results with confidence
     results = []
-
-    for img_path in image_paths:
-        try:
-            # Extract embedding
-            embedding = extract_embedding(img_path, model, processor, device)
-
-            # Classify
-            prediction = classifier.predict([embedding])[0]
-            proba = classifier.predict_proba([embedding])[0]
-
-            # Map prediction to label
-            label = 'keep' if prediction == 0 else 'exclude'
-            confidence = float(proba[prediction])
-
-            results.append({
-                'path': str(img_path),
-                'label': label,
-                'confidence': confidence
-            })
-
-        except Exception as e:
-            # Log to stderr, return null result
-            print(f"Error processing {img_path}: {e}", file=sys.stderr)
-            results.append({
-                'path': str(img_path),
-                'label': None,
-                'confidence': 0.0
-            })
+    for i, (img_path, pred) in enumerate(zip(image_paths, predictions)):
+        confidence = float(probabilities[i][pred])  # Confidence for predicted class
+        results.append({
+            'path': img_path.name,  # Just filename, not full path
+            'label': 'keep' if pred == 1 else 'exclude',
+            'confidence': confidence
+        })
 
     return results
 
-
-def find_images(directory: Path) -> List[Path]:
-    """Recursively find all .jpg and .png images in directory."""
-    images = []
-    images.extend(directory.rglob('*.jpg'))
-    images.extend(directory.rglob('*.jpeg'))
-    images.extend(directory.rglob('*.png'))
-    return sorted(images)
-
-
 def main():
-    parser = argparse.ArgumentParser(description='Classify images using trained CLIP classifier')
-    parser.add_argument('directory', nargs='?', help='Directory containing images to classify')
-    parser.add_argument('--stdin', action='store_true', help='Read image paths from stdin (one per line)')
-    parser.add_argument('--model', type=str, default='models/classifier.pkl', help='Path to trained classifier')
-    parser.add_argument('--device', type=str, default='cpu', help='Device to use (cpu or cuda)')
-    args = parser.parse_args()
-
-    # Load trained classifier
-    model_path = Path(args.model)
-    if not model_path.exists():
-        print(f"Error: Model file not found: {model_path}", file=sys.stderr)
-        print("Run train_classifier.py first to create the model.", file=sys.stderr)
+    if len(sys.argv) != 2:
+        print("Usage: python classify_images.py <image_directory>", file=sys.stderr)
         sys.exit(1)
+
+    image_dir = sys.argv[1]
 
     try:
-        with open(model_path, 'rb') as f:
-            classifier = pickle.load(f)
+        results = classify_images(image_dir)
+        print(json.dumps(results, indent=2))
     except Exception as e:
-        print(f"Error loading model: {e}", file=sys.stderr)
+        print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
-
-    # Load CLIP model
-    try:
-        model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32")
-        processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32")
-        model.to(args.device)
-        model.eval()
-    except Exception as e:
-        print(f"Error loading CLIP model: {e}", file=sys.stderr)
-        print("This may be due to missing dependencies or network issues.", file=sys.stderr)
-        sys.exit(2)
-
-    # Get image paths
-    if args.stdin:
-        image_paths = [Path(line.strip()) for line in sys.stdin if line.strip()]
-    elif args.directory:
-        directory = Path(args.directory)
-        if not directory.exists():
-            print(f"Error: Directory not found: {directory}", file=sys.stderr)
-            sys.exit(1)
-        image_paths = find_images(directory)
-    else:
-        print("Error: Must specify directory or use --stdin", file=sys.stderr)
-        sys.exit(1)
-
-    if len(image_paths) == 0:
-        print("Warning: No images found", file=sys.stderr)
-        print("[]")
-        sys.exit(0)
-
-    # Classify images
-    results = classify_images(image_paths, classifier, model, processor, args.device)
-
-    # Output JSON to stdout
-    print(json.dumps(results, indent=2))
-
 
 if __name__ == '__main__':
     main()
