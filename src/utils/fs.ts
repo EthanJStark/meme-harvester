@@ -1,6 +1,35 @@
 import { mkdir, readdir } from 'fs/promises';
-import { basename, extname, join } from 'path';
+import { basename, extname, join, resolve, relative, isAbsolute } from 'path';
 import { existsSync } from 'fs';
+import { logger } from './logger.js';
+
+/**
+ * Validate that output path is within base directory (prevents path traversal)
+ *
+ * @param baseDir - Base directory to constrain paths within
+ * @param userPath - User-provided path to validate
+ * @returns Absolute validated path
+ * @throws Error if path escapes base directory
+ */
+export function validateOutputPath(baseDir: string, userPath: string): string {
+  // Resolve to absolute path
+  const resolvedBase = resolve(baseDir);
+  const resolvedPath = isAbsolute(userPath)
+    ? resolve(userPath)
+    : resolve(baseDir, userPath);
+
+  // Check if resolved path is within base directory
+  const relativePath = relative(resolvedBase, resolvedPath);
+
+  // If relative path starts with '..', it's outside base directory
+  if (relativePath.startsWith('..') || isAbsolute(relativePath)) {
+    throw new Error(
+      `Path traversal detected: '${userPath}' resolves outside base directory '${baseDir}'`
+    );
+  }
+
+  return resolvedPath;
+}
 
 export async function getNextScanNumber(
   outputDir: string,
@@ -31,7 +60,10 @@ export async function getNextScanNumber(
 }
 
 export async function ensureOutputDir(outputDir: string): Promise<void> {
-  await mkdir(outputDir, { recursive: true });
+  if (!existsSync(outputDir)) {
+    await mkdir(outputDir, { recursive: true });
+    logger.verbose(`Created output directory: ${outputDir}`);
+  }
 }
 
 export function getStillsDir(

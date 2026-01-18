@@ -9,6 +9,37 @@ export interface ProbeResult {
   fps: number;
 }
 
+/**
+ * Parse FFmpeg frame rate fraction (e.g., "30/1" → 30, "24000/1001" → 23.976)
+ * Safe alternative to eval()
+ */
+export function parseFraction(fraction: string): number {
+  const parts = fraction.split('/');
+
+  if (parts.length === 1) {
+    // Whole number
+    const num = parseFloat(parts[0]);
+    if (isNaN(num)) {
+      throw new Error(`Invalid frame rate format: ${fraction}`);
+    }
+    return num;
+  }
+
+  if (parts.length === 2) {
+    // Fraction
+    const numerator = parseFloat(parts[0]);
+    const denominator = parseFloat(parts[1]);
+
+    if (isNaN(numerator) || isNaN(denominator) || denominator === 0) {
+      throw new Error(`Invalid frame rate format: ${fraction}`);
+    }
+
+    return numerator / denominator;
+  }
+
+  throw new Error(`Invalid frame rate format: ${fraction}`);
+}
+
 export async function probeVideo(inputPath: string): Promise<ProbeResult> {
   logger.verbose(`Probing video: ${inputPath}`);
 
@@ -29,7 +60,7 @@ export async function probeVideo(inputPath: string): Promise<ProbeResult> {
   }
 
   const duration = parseFloat(data.format.duration);
-  const fps = eval(videoStream.r_frame_rate); // e.g., "30/1" -> 30
+  const fps = parseFraction(videoStream.r_frame_rate);
 
   return {
     durationSec: duration,
