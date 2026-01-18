@@ -153,19 +153,22 @@ export function parseArgs(argv: string[]): Config {
 
 async function main() {
   try {
-    // Parse raw options to check for --add-to-blocklist
-    const program = new Command();
-    program
-      .option('--add-to-blocklist <imagePath>')
-      .option('--blocklist-description <text>')
-      .option('--verbose')
-      .allowUnknownOption();
+    // Check if --add-to-blocklist is present before full parse
+    const hasBlocklistArg = process.argv.includes('--add-to-blocklist');
 
-    program.parse(process.argv);
-    const rawOpts = program.opts();
+    if (hasBlocklistArg) {
+      // Parse for blocklist mode only
+      const program = new Command();
+      program
+        .option('--add-to-blocklist <imagePath>')
+        .option('--blocklist-description <text>')
+        .option('--verbose')
+        .allowUnknownOption()
+        .allowExcessArguments();
 
-    // Handle --add-to-blocklist mode
-    if (rawOpts.addToBlocklist) {
+      program.parse(process.argv);
+      const rawOpts = program.opts();
+
       if (!rawOpts.blocklistDescription) {
         throw new Error('--blocklist-description is required when using --add-to-blocklist');
       }

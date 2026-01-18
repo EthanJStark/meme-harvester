@@ -496,6 +496,10 @@ def generate_html(output_dir: Path, report: Dict) -> str:
                 <div class="stat-label">Exclude</div>
                 <div class="stat-value exclude" id="exclude-count">{len(exclude_frames)}</div>
             </div>
+            <div class="stat">
+                <div class="stat-label">Unclassified</div>
+                <div class="stat-value" style="color: #fbbf24;" id="unclassified-count">{len(unclassified_frames)}</div>
+            </div>
         </div>
     </div>
 
@@ -515,7 +519,7 @@ def generate_html(output_dir: Path, report: Dict) -> str:
 
     # Add keep frames
     for frame in keep_frames:
-        filename = Path(frame['path']).name
+        filename = Path(frame['file']).name
         confidence = frame.get('classification', {}).get('confidence', 0)
 
         # Determine confidence level for bar
@@ -543,7 +547,7 @@ def generate_html(output_dir: Path, report: Dict) -> str:
             </div>
 """
 
-    html += """
+    html += f"""
         </div>
     </div>
 
@@ -557,7 +561,7 @@ def generate_html(output_dir: Path, report: Dict) -> str:
 
     # Add exclude frames
     for frame in exclude_frames:
-        filename = Path(frame['path']).name
+        filename = Path(frame['file']).name
         confidence = frame.get('classification', {}).get('confidence', 0)
 
         # Determine confidence level for bar
@@ -588,7 +592,40 @@ def generate_html(output_dir: Path, report: Dict) -> str:
     html += f"""
         </div>
     </div>
+"""
 
+    # Add unclassified frames section if any exist
+    if unclassified_frames:
+        html += f"""
+    <div class="section">
+        <div class="section-header">
+            <h2 class="section-title" style="color: #fbbf24;">Unclassified</h2>
+            <span class="section-count">{len(unclassified_frames)} images (no ML classification)</span>
+        </div>
+        <div class="grid" id="unclassified-grid">
+"""
+        # Add unclassified frames (assign default label of 'keep' for initial display)
+        for frame in unclassified_frames:
+            filename = Path(frame['file']).name
+
+            html += f"""
+            <div class="card keep" data-filename="{filename}" data-original-label="keep" data-confidence="0">
+                <img src="{filename}" alt="{filename}">
+                <div class="card-footer">
+                    <div class="label keep">Keep</div>
+                    <div class="filename">{filename}</div>
+                    <div class="confidence">Not yet classified</div>
+                    <button class="blocklist-btn" onclick="addToBlocklist('{filename}', event)">🚫 Blocklist</button>
+                </div>
+            </div>
+"""
+
+        html += """
+        </div>
+    </div>
+"""
+
+    html += f"""
         </div>
         <!-- END main-content -->
 

@@ -78,7 +78,7 @@ def classify_images(image_dir):
     for i, (img_path, pred) in enumerate(zip(image_paths, predictions)):
         confidence = float(probabilities[i][pred])  # Confidence for predicted class
         results.append({
-            'path': img_path.name,  # Just filename, not full path
+            'path': str(img_path),  # Full path for matching with TypeScript
             'label': 'keep' if pred == 1 else 'exclude',
             'confidence': confidence
         })
