@@ -783,6 +783,15 @@ def generate_html(output_dir: Path, report: Dict) -> str:
                 labelEl.classList.add(newLabel);
                 labelEl.textContent = newLabel.charAt(0).toUpperCase() + newLabel.slice(1);
 
+                // Move card to correct grid
+                const targetGrid = newLabel === 'keep'
+                    ? document.getElementById('keep-grid')
+                    : document.getElementById('exclude-grid');
+                targetGrid.appendChild(card);
+
+                // Re-sort the target grid
+                sortGrid(targetGrid);
+
                 // Track modification
                 if (newLabel !== originalLabel) {{
                     modifications.set(filename, newLabel);
