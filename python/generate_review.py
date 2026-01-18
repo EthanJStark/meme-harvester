@@ -284,9 +284,24 @@ def generate_html(output_dir: Path, report: Dict) -> str:
             color: #666;
             margin-top: 4px;
         }}
+
+        /* Container layout */
+        .container {{
+            display: flex;
+            gap: 20px;
+            max-width: 1800px;
+            margin: 0 auto;
+        }}
+
+        .main-content {{
+            flex: 1;
+            min-width: 0;
+        }}
     </style>
 </head>
 <body>
+    <div class="container">
+        <div class="main-content">
     <div class="header">
         <h1>Classification Review</h1>
         <p>Click on any image to toggle its classification</p>
@@ -365,6 +380,27 @@ def generate_html(output_dir: Path, report: Dict) -> str:
     html += f"""
         </div>
     </div>
+
+        </div>
+        <!-- END main-content -->
+
+        <!-- Action History Sidebar -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <h2>Action History</h2>
+                <span class="entry-count" id="entry-count">0 entries</span>
+            </div>
+            <div class="sidebar-content" id="sidebar-content">
+                <div class="empty-state">
+                    No actions yet. Make corrections and submit to see history here.
+                </div>
+            </div>
+            <button class="btn btn-secondary clear-history-btn" id="clear-history-btn">
+                Clear History
+            </button>
+        </div>
+    </div>
+    <!-- END container -->
 
     <script>
         // Track modifications
