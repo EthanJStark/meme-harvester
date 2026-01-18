@@ -4,6 +4,7 @@ import { extractFrame, calculateTimestamp } from './ffmpeg/extract.js';
 import { computeHash } from './hash/phash.js';
 import { deduplicateFrames } from './hash/dedupe.js';
 import { classifyFrames } from './classify/classify.js';
+import { loadBlocklist, checkBlocklist } from './blocklist.js';
 import { generateReport, writeReport } from './report.js';
 import {
   ensureOutputDir,
@@ -44,6 +45,9 @@ export async function processVideo(
   channelContext?: { channelName: string; videoTitle: string }
 ): Promise<InputResult> {
   logger.info(`Processing: ${inputPath}`);
+
+  // Load blocklist
+  const blocklist = await loadBlocklist();
 
   // Determine scan number and output paths
   let scanNumber: number;
@@ -152,27 +156,50 @@ export async function processVideo(
     frames.push(...batchFrames);
   }
 
-  // 5. Deduplicate
+  // 5. Check blocklist and mark excluded frames
+  let blocklistedCount = 0;
+  for (const frame of frames) {
+    const blocklistMatch = checkBlocklist(frame.hash, blocklist, config.hashDistance);
+    if (blocklistMatch) {
+      frame.classification = {
+        label: 'exclude',
+        confidence: 1.0
+      };
+      blocklistedCount++;
+      logger.verbose(`  Frame ${frame.id} matched blocklist: ${blocklistMatch.description}`);
+    }
+  }
+
+  if (blocklistedCount > 0) {
+    logger.info(`  Blocklist: ${blocklistedCount} frame(s) auto-excluded`);
+  }
+
+  // 6. Deduplicate
   const clusters = deduplicateFrames(frames, config.hashDistance);
   logger.info(`  Deduplication: ${frames.length} frames -> ${clusters.length} unique`);
 
-  // 6. Classification (optional)
+  // 7. Classification (optional)
   if (config.classify) {
     logger.info('  Running classification...');
 
-    const classifications = await classifyFrames(stillsDir, frames);
+    // Only classify frames not already excluded by blocklist
+    const framesToClassify = frames.filter(f => !f.classification);
 
-    // Update frames with classification results
-    for (const frame of frames) {
-      const framePath = join(config.output, frame.file);
-      const result = classifications.get(framePath);
-      if (result) {
-        frame.classification = {
-          label: result.label,
-          confidence: result.confidence
-        };
-      } else {
-        frame.classification = null;
+    if (framesToClassify.length > 0) {
+      const classifications = await classifyFrames(stillsDir, framesToClassify);
+
+      // Update frames with classification results
+      for (const frame of framesToClassify) {
+        const framePath = join(config.output, frame.file);
+        const result = classifications.get(framePath);
+        if (result) {
+          frame.classification = {
+            label: result.label,
+            confidence: result.confidence
+          };
+        } else {
+          frame.classification = null;
+        }
       }
     }
 

@@ -307,6 +307,40 @@ def generate_html(output_dir: Path, report: Dict) -> str:
             margin-top: 4px;
         }}
 
+        .blocklist-btn {{
+            padding: 6px 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 11px;
+            font-weight: 600;
+            background: #7f1d1d;
+            color: #fca5a5;
+            margin-top: 8px;
+            width: 100%;
+            transition: all 0.2s;
+        }}
+
+        .blocklist-btn:hover {{
+            background: #991b1b;
+            color: #fef2f2;
+        }}
+
+        .blocklist-btn:disabled {{
+            opacity: 0.5;
+            cursor: not-allowed;
+        }}
+
+        .card.blocklisted {{
+            opacity: 0.5;
+            pointer-events: none;
+        }}
+
+        .card.blocklisted .blocklist-btn {{
+            background: #065f46;
+            color: #6ee7b7;
+        }}
+
         /* Container layout */
         .container {{
             display: flex;
@@ -504,6 +538,7 @@ def generate_html(output_dir: Path, report: Dict) -> str:
                     <div class="label keep">Keep</div>
                     <div class="filename">{filename}</div>
                     <div class="confidence">{confidence:.2%} confidence</div>
+                    <button class="blocklist-btn" onclick="addToBlocklist('{filename}', event)">🚫 Blocklist</button>
                 </div>
             </div>
 """
@@ -545,6 +580,7 @@ def generate_html(output_dir: Path, report: Dict) -> str:
                     <div class="label exclude">Exclude</div>
                     <div class="filename">{filename}</div>
                     <div class="confidence">{confidence:.2%} confidence</div>
+                    <button class="blocklist-btn" onclick="addToBlocklist('{filename}', event)">🚫 Blocklist</button>
                 </div>
             </div>
 """
@@ -660,6 +696,7 @@ def generate_html(output_dir: Path, report: Dict) -> str:
                 if (status === 'error') return '✗';
                 if (type === 'correction') return '📝';
                 if (type === 'retrain') return '🔄';
+                if (type === 'blocklist') return '🚫';
                 return '•';
             }}
 
@@ -927,6 +964,68 @@ def generate_html(output_dir: Path, report: Dict) -> str:
             setTimeout(() => {{
                 feedback.classList.remove('show');
             }}, duration);
+        }}
+
+        // Add to blocklist
+        async function addToBlocklist(filename, event) {{
+            event.stopPropagation(); // Prevent card click toggle
+
+            if (!confirm(`Add ${{filename}} to blocklist? This will prevent it from appearing in future scans.`)) {{
+                return;
+            }}
+
+            const btn = event.target;
+            const card = btn.closest('.card');
+
+            try {{
+                btn.disabled = true;
+                btn.textContent = 'Adding...';
+
+                const response = await fetch('/api/blocklist', {{
+                    method: 'POST',
+                    headers: {{ 'Content-Type': 'application/json' }},
+                    body: JSON.stringify({{ filename }})
+                }});
+
+                const result = await response.json();
+
+                if (result.success) {{
+                    // Add to history
+                    actionHistory.add(
+                        'blocklist',
+                        `Blocklisted: ${{filename}}`,
+                        'success'
+                    );
+
+                    // Mark card as blocklisted
+                    card.classList.add('blocklisted');
+                    btn.textContent = '✓ Blocklisted';
+
+                    showFeedback(`✓ Added to blocklist: ${{filename}}`, 'success', 2000);
+                }} else {{
+                    // Add error to history
+                    actionHistory.add(
+                        'blocklist',
+                        `Failed to blocklist ${{filename}}: ${{result.error}}`,
+                        'error'
+                    );
+
+                    showFeedback(`✗ Error: ${{result.error}}`, 'error', 10000);
+                    btn.disabled = false;
+                    btn.textContent = '🚫 Blocklist';
+                }}
+            }} catch (error) {{
+                // Add error to history
+                actionHistory.add(
+                    'blocklist',
+                    `Failed to blocklist ${{filename}}: ${{error.message}}`,
+                    'error'
+                );
+
+                showFeedback(`✗ Failed to add to blocklist: ${{error.message}}`, 'error', 10000);
+                btn.disabled = false;
+                btn.textContent = '🚫 Blocklist';
+            }}
         }}
     </script>
 </body>

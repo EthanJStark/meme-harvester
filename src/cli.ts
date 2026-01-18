@@ -3,9 +3,33 @@ import { Command } from 'commander';
 import type { Config } from './lib/types.js';
 import { runPipeline } from './lib/pipeline.js';
 import { setVerbose } from './utils/logger.js';
-import { existsSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import { isUrl } from './lib/download/ytdlp.js';
 import { validateOutputPath } from './utils/fs.js';
+import { addToBlocklist } from './lib/blocklist.js';
+import { computeHash } from './lib/hash/phash.js';
+
+async function handleAddToBlocklist(imagePath: string, description: string): Promise<void> {
+  if (!existsSync(imagePath)) {
+    throw new Error(`Image file not found: ${imagePath}`);
+  }
+
+  // Compute hash
+  console.log(`Computing pHash for ${imagePath}...`);
+  const hashResult = await computeHash(imagePath);
+
+  // Add to blocklist
+  await addToBlocklist({
+    hash: hashResult.hash,
+    description,
+    source: imagePath
+  });
+
+  console.log(`Successfully added to blocklist:`);
+  console.log(`  Hash: ${hashResult.hash}`);
+  console.log(`  Description: ${description}`);
+  console.log(`  Source: ${imagePath}`);
+}
 
 async function validateConfig(config: Config): Promise<void> {
   // Validate output path
@@ -66,7 +90,9 @@ export function parseArgs(argv: string[]): Config {
     .option('--keep-duplicates', 'write duplicate images (not just canonicals)', false)
     .option('--json <filename>', 'report filename', 'report.json')
     .option('--verbose', 'log FFmpeg commands and detailed output', false)
-    .option('--classify', 'run ML classification on extracted frames', false);
+    .option('--classify', 'run ML classification on extracted frames', false)
+    .option('--add-to-blocklist <imagePath>', 'add image to blocklist by computing its pHash')
+    .option('--blocklist-description <text>', 'description for blocklist entry (required with --add-to-blocklist)');
 
   program.parse(argv);
 
@@ -127,6 +153,28 @@ export function parseArgs(argv: string[]): Config {
 
 async function main() {
   try {
+    // Parse raw options to check for --add-to-blocklist
+    const program = new Command();
+    program
+      .option('--add-to-blocklist <imagePath>')
+      .option('--blocklist-description <text>')
+      .option('--verbose')
+      .allowUnknownOption();
+
+    program.parse(process.argv);
+    const rawOpts = program.opts();
+
+    // Handle --add-to-blocklist mode
+    if (rawOpts.addToBlocklist) {
+      if (!rawOpts.blocklistDescription) {
+        throw new Error('--blocklist-description is required when using --add-to-blocklist');
+      }
+      setVerbose(rawOpts.verbose || false);
+      await handleAddToBlocklist(rawOpts.addToBlocklist, rawOpts.blocklistDescription);
+      return;
+    }
+
+    // Normal pipeline mode
     const config = parseArgs(process.argv);
     await validateConfig(config);
     setVerbose(config.verbose);
