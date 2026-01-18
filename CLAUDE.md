@@ -69,13 +69,14 @@ Scan numbers increment automatically based on existing directories. The `OUTPUT/
 
 ### Pipeline Flow (src/lib/pipeline.ts)
 
-The main `processVideo()` function executes a 5-stage sequential pipeline:
+The main `processVideo()` function executes a sequential pipeline with 5 core stages + 1 optional:
 
 1. **Probe** (`ffmpeg/probe.ts`) - Extract video metadata (duration, streams)
 2. **Detect** (`ffmpeg/freezedetect.ts`) - Run FFmpeg freezedetect filter to find still intervals
 3. **Extract** (`ffmpeg/extract.ts`) - Extract one frame per interval at calculated timestamp
 4. **Hash** (`hash/phash.ts`) - Compute perceptual hash (pHash) using sharp-phash
 5. **Deduplicate** (`hash/dedupe.ts`) - Cluster similar frames by Hamming distance
+6. **Classify** (`classify/classify.ts`) - *Optional:* ML-based classification (keep vs exclude)
 
 ### Module Structure
 
@@ -92,10 +93,12 @@ src/
 │   │   ├── probe.ts         # Video metadata extraction
 │   │   ├── freezedetect.ts  # Still interval detection
 │   │   └── extract.ts       # Frame extraction & timestamp calc
-│   └── hash/                # Perceptual hashing & deduplication
-│       ├── phash.ts         # Compute pHash via sharp-phash
-│       ├── hamming.ts       # Hamming distance calculation
-│       └── dedupe.ts        # Clustering algorithm
+│   ├── hash/                # Perceptual hashing & deduplication
+│   │   ├── phash.ts         # Compute pHash via sharp-phash
+│   │   ├── hamming.ts       # Hamming distance calculation
+│   │   └── dedupe.ts        # Clustering algorithm
+│   └── classify/            # ML-based classification (optional)
+│       └── classify.ts      # Python subprocess integration
 └── utils/
     ├── fs.ts                # Path & directory utilities
     └── logger.ts            # Console logging wrapper
@@ -132,3 +135,22 @@ yt-dlp --version  # Only needed for URL downloads
 ```
 
 Install yt-dlp: https://github.com/yt-dlp/yt-dlp
+
+## ML Classification (Optional)
+
+The tool includes optional ML-based classification using CLIP embeddings + logistic regression.
+
+**Python components:**
+- `python/train_classifier.py` - Train classifier on labeled data
+- `python/classify_images.py` - Inference script (called by CLI)
+- `models/classifier.pkl` - Trained model (gitignored, user-trained locally)
+
+**Integration:**
+- `src/lib/classify/classify.ts` - TypeScript module for subprocess execution
+- Classification runs as optional 6th stage in pipeline
+- Batch optimization for channel mode (classify all images once)
+
+**Testing:**
+- Unit tests: `test/unit/classify.test.ts`
+- Manual testing requires trained model (not in CI)
+- Graceful fallback ensures tests pass without Python dependencies

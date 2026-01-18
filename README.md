@@ -392,6 +392,104 @@ After processing, you'll find:
 }
 ```
 
+---
+
+## ML-Based Image Classification
+
+Meme Harvester includes optional ML-based classification to identify "keep" (memes, interesting content) vs "exclude" (manuals, duplicates, boring frames).
+
+### Setup
+
+1. **Install Python dependencies** (one-time):
+
+```bash
+cd python
+python3 -m venv venv
+source venv/bin/activate  # Windows: venv\Scripts\activate
+pip install -r requirements.txt
+```
+
+2. **Organize labeled training data**:
+
+```
+training-data/
+├── keep/       # Memes, interesting content
+│   └── *.jpg
+└── exclude/    # Manuals, duplicates, boring
+    └── *.jpg
+```
+
+3. **Train classifier**:
+
+```bash
+cd python
+source venv/bin/activate
+python train_classifier.py --data ../training-data --output ../models/classifier.pkl
+```
+
+Expected output:
+```
+Loading CLIP model...
+Loaded 61 'keep' images
+Loaded 26 'exclude' images
+Extracting CLIP embeddings...
+Training logistic regression classifier...
+
+==================================================
+RESULTS:
+==================================================
+Accuracy:  0.889
+Precision: 0.857
+Recall:    0.750
+==================================================
+
+✓ Model saved to ../models/classifier.pkl
+```
+
+### Usage
+
+Add `--classify` flag to enable classification:
+
+```bash
+# Single video with classification
+harvest video.mp4 --classify
+
+# Channel mode with classification
+harvest --channel https://www.youtube.com/@example --classify
+```
+
+Classification results appear in `report.json`:
+
+```json
+{
+  "frames": [
+    {
+      "timestamp": 12.5,
+      "file": "video/1/still_0001.jpg",
+      "classification": {
+        "label": "keep",
+        "confidence": 0.87
+      }
+    }
+  ]
+}
+```
+
+### Performance
+
+- **Single video**: ~50-100 images/second (CPU)
+- **Channel mode**: Batch processing, 1000 images in ~20 seconds
+- **Model size**: CLIP model ~600MB (cached), classifier <1MB
+
+### Graceful Fallback
+
+Classification failures never block frame extraction:
+- Missing model → Warning logged, frames extracted without classification
+- Python dependencies missing → Same graceful fallback
+- All frames marked `classification: null` if classification unavailable
+
+---
+
 ## Troubleshooting
 
 ### "harvest: command not found" or "harvest is not recognized"
