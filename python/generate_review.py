@@ -297,6 +297,128 @@ def generate_html(output_dir: Path, report: Dict) -> str:
             flex: 1;
             min-width: 0;
         }}
+
+        /* Sidebar styles */
+        .sidebar {{
+            width: 300px;
+            background: #1a1a1a;
+            border-radius: 8px;
+            border: 1px solid #3a3a3a;
+            position: sticky;
+            top: 20px;
+            height: calc(100vh - 40px);
+            display: flex;
+            flex-direction: column;
+        }}
+
+        .sidebar-header {{
+            padding: 20px;
+            border-bottom: 1px solid #3a3a3a;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }}
+
+        .sidebar-header h2 {{
+            font-size: 18px;
+            color: #fff;
+        }}
+
+        .entry-count {{
+            font-size: 12px;
+            color: #666;
+            background: #2a2a2a;
+            padding: 4px 8px;
+            border-radius: 12px;
+        }}
+
+        .sidebar-content {{
+            flex: 1;
+            overflow-y: auto;
+            padding: 15px;
+        }}
+
+        .empty-state {{
+            text-align: center;
+            color: #666;
+            padding: 40px 20px;
+            font-size: 14px;
+            line-height: 1.5;
+        }}
+
+        .history-entry {{
+            background: #2a2a2a;
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 10px;
+            border: 1px solid #3a3a3a;
+            transition: all 0.3s;
+            animation: fadeIn 0.3s;
+        }}
+
+        @keyframes fadeIn {{
+            from {{ opacity: 0; transform: translateY(-10px); }}
+            to {{ opacity: 1; transform: translateY(0); }}
+        }}
+
+        .history-entry.error {{
+            background: #7f1d1d;
+            border-color: #ef4444;
+        }}
+
+        .history-entry:hover {{
+            background: #333;
+        }}
+
+        .entry-timestamp {{
+            font-size: 11px;
+            color: #888;
+            margin-bottom: 6px;
+            font-family: 'Monaco', 'Courier New', monospace;
+        }}
+
+        .entry-icon {{
+            font-size: 16px;
+            margin-right: 6px;
+        }}
+
+        .entry-message {{
+            font-size: 14px;
+            color: #e0e0e0;
+            line-height: 1.4;
+        }}
+
+        .history-entry.error .entry-message {{
+            color: #fca5a5;
+        }}
+
+        .btn-secondary {{
+            background: #3a3a3a;
+            color: #888;
+        }}
+
+        .btn-secondary:hover {{
+            background: #4a4a4a;
+            color: #fff;
+        }}
+
+        .clear-history-btn {{
+            margin: 15px;
+        }}
+
+        /* Responsive: stack on small screens */
+        @media (max-width: 1200px) {{
+            .container {{
+                flex-direction: column;
+            }}
+
+            .sidebar {{
+                width: 100%;
+                position: static;
+                height: auto;
+                max-height: 400px;
+            }}
+        }}
     </style>
 </head>
 <body>
