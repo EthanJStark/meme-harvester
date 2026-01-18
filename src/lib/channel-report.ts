@@ -20,11 +20,16 @@ interface ChannelReport {
     format: string;
     hashDistance: number;
     keepDuplicates: boolean;
+    classify: boolean;
   };
   summary: {
     totalVideos: number;
     successCount: number;
     errorCount: number;
+    totalFrames?: number;
+    keepFrames?: number;
+    excludeFrames?: number;
+    unclassifiedFrames?: number;
   };
   videos: Array<{
     title: string;
@@ -32,6 +37,8 @@ interface ChannelReport {
     path: string;
     framesExtracted: number;
     uniqueFrames: number;
+    keepFrames?: number;
+    excludeFrames?: number;
   }>;
   errors: Array<{
     url: string;
@@ -49,6 +56,25 @@ function generateChannelReport(
 ): ChannelReport {
   const { channelInfo, results, errors } = channelResult;
 
+  // Calculate classification statistics
+  let totalFrames = 0;
+  let keepFrames = 0;
+  let excludeFrames = 0;
+  let unclassifiedFrames = 0;
+
+  for (const result of results) {
+    totalFrames += result.frames.length;
+    for (const frame of result.frames) {
+      if (frame.classification?.label === 'keep') {
+        keepFrames++;
+      } else if (frame.classification?.label === 'exclude') {
+        excludeFrames++;
+      } else {
+        unclassifiedFrames++;
+      }
+    }
+  }
+
   return {
     version: '1.0',
     channelName: channelInfo.channelName,
@@ -60,20 +86,36 @@ function generateChannelReport(
       noise: config.noise,
       format: config.format,
       hashDistance: config.hashDistance,
-      keepDuplicates: config.keepDuplicates
+      keepDuplicates: config.keepDuplicates,
+      classify: config.classify
     },
     summary: {
       totalVideos: channelInfo.videos.length,
       successCount: results.length,
-      errorCount: errors.length
+      errorCount: errors.length,
+      ...(config.classify && {
+        totalFrames,
+        keepFrames,
+        excludeFrames,
+        unclassifiedFrames
+      })
     },
-    videos: results.map(result => ({
-      title: channelInfo.videos.find(v => v.url === result.sourceUrl)?.title || 'Unknown',
-      url: result.sourceUrl || '',
-      path: result.path,
-      framesExtracted: result.frames.length,
-      uniqueFrames: result.dedupe.clusters.length
-    })),
+    videos: results.map(result => {
+      const videoKeep = result.frames.filter(f => f.classification?.label === 'keep').length;
+      const videoExclude = result.frames.filter(f => f.classification?.label === 'exclude').length;
+
+      return {
+        title: channelInfo.videos.find(v => v.url === result.sourceUrl)?.title || 'Unknown',
+        url: result.sourceUrl || '',
+        path: result.path,
+        framesExtracted: result.frames.length,
+        uniqueFrames: result.dedupe.clusters.length,
+        ...(config.classify && {
+          keepFrames: videoKeep,
+          excludeFrames: videoExclude
+        })
+      };
+    }),
     errors
   };
 }

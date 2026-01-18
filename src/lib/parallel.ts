@@ -1,6 +1,7 @@
 import { logger } from '../utils/logger.js';
 import { validateYtDlp, downloadUrl } from './download/ytdlp.js';
 import { processVideo } from './pipeline.js';
+import { classifyBatch } from './classify/classify.js';
 import { tmpdir } from 'os';
 import { mkdtemp, rm } from 'fs/promises';
 import { join } from 'path';
@@ -107,6 +108,32 @@ export async function processChannelVideos(
         });
       }
     });
+  }
+
+  // Batch classification across all videos (if enabled)
+  if (config.classify && results.length > 0) {
+    logger.info('Running batch classification on all extracted frames...');
+
+    const channelDir = join(config.output, channelInfo.channelName);
+    const classifications = await classifyBatch(channelDir);
+
+    // Update all video results with classification data
+    for (const result of results) {
+      for (const frame of result.frames) {
+        const framePath = join(config.output, frame.file);
+        const classResult = classifications.get(framePath);
+        if (classResult) {
+          frame.classification = {
+            label: classResult.label,
+            confidence: classResult.confidence
+          };
+        } else {
+          frame.classification = null;
+        }
+      }
+    }
+
+    logger.info(`Batch classification complete: ${classifications.size} frames classified`);
   }
 
   // Summary
