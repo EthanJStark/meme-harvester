@@ -20,5 +20,5 @@ python/*.pyc
 models/*.pkl
 models/*.pth
 
-# Training data (optional - may want to track)
-# training-data/
+# Training data
+training-data/
