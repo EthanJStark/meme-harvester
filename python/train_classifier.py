@@ -8,6 +8,10 @@ Usage:
 
 import argparse
 import pickle
+import json
+import hashlib
+import shutil
+from datetime import datetime
 from pathlib import Path
 from typing import Tuple, List
 
@@ -16,8 +20,8 @@ import torch
 from PIL import Image
 from transformers import CLIPProcessor, CLIPModel
 from sklearn.linear_model import LogisticRegression
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score, precision_score, recall_score, confusion_matrix
+from sklearn.model_selection import train_test_split, cross_validate
+from sklearn.metrics import accuracy_score, precision_score, recall_score, confusion_matrix, classification_report
 
 
 def extract_clip_embeddings(
@@ -99,11 +103,84 @@ def load_labeled_data(data_dir: Path) -> Tuple[List[Path], List[int]]:
     return image_paths, labels
 
 
+def compute_data_hash(image_paths: List[Path]) -> str:
+    """
+    Compute hash of training data for versioning.
+
+    Uses file paths and modification times to detect data changes.
+    """
+    hasher = hashlib.sha256()
+    for path in sorted(image_paths):
+        hasher.update(str(path).encode())
+        hasher.update(str(path.stat().st_mtime).encode())
+    return hasher.hexdigest()[:8]
+
+
+def save_model_metadata(
+    output_path: Path,
+    data_hash: str,
+    metrics: dict,
+    training_info: dict
+):
+    """
+    Save model metadata to JSON file alongside the model.
+
+    Args:
+        output_path: Path where model was saved (.pkl)
+        data_hash: Hash of training data
+        metrics: Dictionary of cross-validation metrics
+        training_info: Additional training information (image counts, etc.)
+    """
+    metadata = {
+        'version': 1,
+        'timestamp': datetime.utcnow().isoformat() + 'Z',
+        'data_hash': data_hash,
+        'metrics': metrics,
+        'training_info': training_info
+    }
+
+    meta_path = output_path.with_suffix('.meta.json')
+    with open(meta_path, 'w') as f:
+        json.dump(metadata, f, indent=2)
+
+    print(f"✓ Metadata saved to {meta_path}")
+
+
+def archive_previous_model(output_path: Path):
+    """
+    Archive existing model to archive/ directory before overwriting.
+
+    Archives both .pkl and .meta.json files if they exist.
+    """
+    if not output_path.exists():
+        return
+
+    # Create archive directory
+    archive_dir = output_path.parent / 'archive'
+    archive_dir.mkdir(exist_ok=True)
+
+    # Generate archive filename with timestamp
+    timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+    archive_name = f"{output_path.stem}_{timestamp}{output_path.suffix}"
+    archive_path = archive_dir / archive_name
+
+    # Archive model file
+    shutil.copy2(output_path, archive_path)
+    print(f"✓ Archived previous model to {archive_path}")
+
+    # Archive metadata if it exists
+    meta_path = output_path.with_suffix('.meta.json')
+    if meta_path.exists():
+        meta_archive_path = archive_dir / f"{output_path.stem}_{timestamp}.meta.json"
+        shutil.copy2(meta_path, meta_archive_path)
+
+
 def main():
     parser = argparse.ArgumentParser(description='Train image classifier using CLIP embeddings')
     parser.add_argument('--data', type=str, required=True, help='Path to training data directory')
     parser.add_argument('--output', type=str, required=True, help='Path to save trained model (.pkl)')
     parser.add_argument('--device', type=str, default='cpu', help='Device to use (cpu or cuda)')
+    parser.add_argument('--dry-run', action='store_true', help='Evaluate model without saving')
     args = parser.parse_args()
 
     data_dir = Path(args.data)
@@ -126,45 +203,116 @@ def main():
         print(f"Warning: Some images failed to process. Using {len(embeddings)}/{len(labels)} images")
         # This shouldn't happen with our error handling, but be safe
 
-    print(f"\nSplitting data (80/20 train/test)...")
+    # Check for class imbalance
+    keep_count = np.sum(labels == 0)
+    exclude_count = np.sum(labels == 1)
+    class_ratio = max(keep_count, exclude_count) / max(min(keep_count, exclude_count), 1)
+
+    if class_ratio > 2.0:
+        print(f"\n⚠️  WARNING: Class imbalance detected!")
+        print(f"   Keep: {keep_count} images, Exclude: {exclude_count} images")
+        print(f"   Ratio: {class_ratio:.1f}:1")
+        print(f"   Consider collecting more data for the minority class.\n")
+
+    print(f"\nPerforming 5-fold cross-validation...")
+    classifier = LogisticRegression(max_iter=1000, random_state=42)
+
+    # Cross-validation with multiple metrics
+    cv_results = cross_validate(
+        classifier,
+        embeddings,
+        labels,
+        cv=5,
+        scoring=['accuracy', 'precision', 'recall', 'f1'],
+        return_train_score=False
+    )
+
+    # Calculate mean and std for each metric
+    accuracy_mean = cv_results['test_accuracy'].mean()
+    accuracy_std = cv_results['test_accuracy'].std()
+    precision_mean = cv_results['test_precision'].mean()
+    precision_std = cv_results['test_precision'].std()
+    recall_mean = cv_results['test_recall'].mean()
+    recall_std = cv_results['test_recall'].std()
+    f1_mean = cv_results['test_f1'].mean()
+    f1_std = cv_results['test_f1'].std()
+
+    print(f"\n{'='*50}")
+    print(f"CROSS-VALIDATION RESULTS (5-fold):")
+    print(f"{'='*50}")
+    print(f"Accuracy:  {accuracy_mean:.3f} (+/- {accuracy_std:.3f})")
+    print(f"Precision: {precision_mean:.3f} (+/- {precision_std:.3f})")
+    print(f"Recall:    {recall_mean:.3f} (+/- {recall_std:.3f})")
+    print(f"F1-Score:  {f1_mean:.3f} (+/- {f1_std:.3f})")
+
+    # Train on full dataset for final model
+    print(f"\nTraining final model on full dataset ({len(embeddings)} images)...")
+    classifier.fit(embeddings, labels)
+
+    # Generate per-class metrics using a held-out test set
+    print(f"\nEvaluating per-class performance (80/20 split)...")
     X_train, X_test, y_train, y_test = train_test_split(
         embeddings, labels, test_size=0.2, random_state=42, stratify=labels
     )
 
-    print(f"Training set: {len(X_train)} images")
-    print(f"Test set: {len(X_test)} images")
+    temp_classifier = LogisticRegression(max_iter=1000, random_state=42)
+    temp_classifier.fit(X_train, y_train)
+    y_pred = temp_classifier.predict(X_test)
 
-    print(f"\nTraining logistic regression classifier...")
-    classifier = LogisticRegression(max_iter=1000, random_state=42)
-    classifier.fit(X_train, y_train)
+    print(f"\nPer-Class Metrics:")
+    print(classification_report(
+        y_test,
+        y_pred,
+        target_names=['keep', 'exclude'],
+        digits=3
+    ))
 
-    print(f"\nEvaluating on test set...")
-    y_pred = classifier.predict(X_test)
-
-    accuracy = accuracy_score(y_test, y_pred)
-    precision = precision_score(y_test, y_pred, zero_division=0)
-    recall = recall_score(y_test, y_pred, zero_division=0)
     cm = confusion_matrix(y_test, y_pred)
-
-    print(f"\n{'='*50}")
-    print(f"RESULTS:")
-    print(f"{'='*50}")
-    print(f"Accuracy:  {accuracy:.3f}")
-    print(f"Precision: {precision:.3f}")
-    print(f"Recall:    {recall:.3f}")
-    print(f"\nConfusion Matrix:")
+    print(f"Confusion Matrix:")
     print(f"                 Predicted")
     print(f"               Keep  Exclude")
     print(f"Actual Keep    {cm[0][0]:4d}  {cm[0][1]:4d}")
     print(f"       Exclude {cm[1][0]:4d}  {cm[1][1]:4d}")
     print(f"{'='*50}")
 
-    # Save model
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(output_path, 'wb') as f:
-        pickle.dump(classifier, f)
+    # Compute training data hash for versioning
+    data_hash = compute_data_hash(image_paths)
 
-    print(f"\n✓ Model saved to {output_path}")
+    # Collect metrics and training info
+    metrics = {
+        'accuracy_mean': float(accuracy_mean),
+        'accuracy_std': float(accuracy_std),
+        'precision_mean': float(precision_mean),
+        'precision_std': float(precision_std),
+        'recall_mean': float(recall_mean),
+        'recall_std': float(recall_std),
+        'f1_mean': float(f1_mean),
+        'f1_std': float(f1_std)
+    }
+
+    training_info = {
+        'total_images': len(image_paths),
+        'keep_count': int(keep_count),
+        'exclude_count': int(exclude_count),
+        'class_ratio': float(class_ratio)
+    }
+
+    # Save model (unless dry-run)
+    if args.dry_run:
+        print(f"\n🔍 DRY RUN: Model evaluation complete (not saved)")
+    else:
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Archive previous model if it exists
+        archive_previous_model(output_path)
+
+        # Save new model
+        with open(output_path, 'wb') as f:
+            pickle.dump(classifier, f)
+        print(f"\n✓ Model saved to {output_path}")
+
+        # Save metadata
+        save_model_metadata(output_path, data_hash, metrics, training_info)
 
 
 if __name__ == '__main__':

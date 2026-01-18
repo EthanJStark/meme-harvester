@@ -76,6 +76,11 @@ def handle_corrections():
         keep_dir.mkdir(parents=True, exist_ok=True)
         exclude_dir.mkdir(parents=True, exist_ok=True)
 
+        # Extract video name and scan number from OUTPUT_DIR (e.g., OUTPUT/VideoName/1/)
+        # OUTPUT_DIR structure: .../OUTPUT/VideoName/ScanNumber
+        video_name = OUTPUT_DIR.parent.name  # VideoName
+        scan_number = OUTPUT_DIR.name        # ScanNumber
+
         moved_count = 0
         errors = []
 
@@ -102,8 +107,13 @@ def handle_corrections():
                 errors.append(f"Invalid label '{new_label}' for {filename}")
                 continue
 
-            # Copy image to training data directory
-            dest_path = dest_dir / filename
+            # Prefix filename with video name and scan number to avoid collisions
+            # Format: VideoName_ScanNumber_still_0001.jpg
+            name_stem = Path(filename).stem
+            name_ext = Path(filename).suffix
+            prefixed_filename = f"{video_name}_{scan_number}_{name_stem}{name_ext}"
+            dest_path = dest_dir / prefixed_filename
+
             try:
                 shutil.copy2(source_path, dest_path)
                 moved_count += 1
@@ -196,6 +206,123 @@ def handle_retrain():
 
     except subprocess.TimeoutExpired:
         return jsonify({'error': 'Training timed out (5 minutes)'}), 500
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/compare', methods=['POST'])
+def handle_compare():
+    """
+    Compare current model with potential retrained model (dry-run).
+
+    Returns metrics comparison and recommendation without saving.
+    """
+    try:
+        # Get script directory
+        script_dir = Path(__file__).parent
+        train_script = script_dir / 'train_classifier.py'
+
+        if not train_script.exists():
+            return jsonify({'error': 'train_classifier.py not found'}), 500
+
+        # Check if training data exists
+        if not TRAINING_DATA_DIR.exists():
+            return jsonify({'error': f'Training data directory not found: {TRAINING_DATA_DIR}'}), 400
+
+        keep_images = list((TRAINING_DATA_DIR / 'keep').glob('*.jpg')) if (TRAINING_DATA_DIR / 'keep').exists() else []
+        exclude_images = list((TRAINING_DATA_DIR / 'exclude').glob('*.jpg')) if (TRAINING_DATA_DIR / 'exclude').exists() else []
+
+        if len(keep_images) == 0 and len(exclude_images) == 0:
+            return jsonify({'error': 'No training images found'}), 400
+
+        # Load current model metadata if it exists
+        current_metrics = None
+        meta_path = MODEL_PATH.with_suffix('.meta.json')
+        if meta_path.exists():
+            with open(meta_path, 'r') as f:
+                metadata = json.load(f)
+                current_metrics = metadata.get('metrics', {})
+
+        # Run training script with --dry-run
+        cmd = [
+            sys.executable,
+            str(train_script),
+            '--data', str(TRAINING_DATA_DIR),
+            '--output', str(MODEL_PATH),
+            '--device', 'cpu',
+            '--dry-run'
+        ]
+
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=300  # 5 minute timeout
+        )
+
+        if result.returncode != 0:
+            return jsonify({
+                'error': 'Dry-run evaluation failed',
+                'stderr': result.stderr
+            }), 500
+
+        # Parse output for new metrics
+        output_lines = result.stdout.strip().split('\n')
+        new_metrics = {
+            'accuracy': None,
+            'precision': None,
+            'recall': None,
+            'f1': None
+        }
+
+        for line in output_lines:
+            if 'Accuracy:' in line and '+/-' in line:
+                # Parse "Accuracy:  0.875 (+/- 0.042)"
+                parts = line.split(':')[1].strip().split('(')[0].strip()
+                new_metrics['accuracy'] = parts
+            elif 'Precision:' in line and '+/-' in line:
+                parts = line.split(':')[1].strip().split('(')[0].strip()
+                new_metrics['precision'] = parts
+            elif 'Recall:' in line and '+/-' in line:
+                parts = line.split(':')[1].strip().split('(')[0].strip()
+                new_metrics['recall'] = parts
+            elif 'F1-Score:' in line and '+/-' in line:
+                parts = line.split(':')[1].strip().split('(')[0].strip()
+                new_metrics['f1'] = parts
+
+        # Calculate improvement if current model exists
+        recommendation = None
+        improvement = None
+
+        if current_metrics:
+            try:
+                current_acc = current_metrics.get('accuracy_mean', 0)
+                new_acc = float(new_metrics['accuracy']) if new_metrics['accuracy'] else 0
+
+                if new_acc > current_acc:
+                    improvement = ((new_acc - current_acc) / current_acc) * 100
+                    if improvement > 5:
+                        recommendation = f"Retrain recommended: +{improvement:.1f}% accuracy improvement"
+                    else:
+                        recommendation = f"Minor improvement: +{improvement:.1f}% accuracy (retrain optional)"
+                else:
+                    recommendation = "Current model performs better. Retrain not recommended."
+            except (ValueError, TypeError):
+                recommendation = "Unable to calculate improvement"
+        else:
+            recommendation = "No current model for comparison. Retrain to create baseline."
+
+        return jsonify({
+            'success': True,
+            'current_metrics': current_metrics,
+            'new_metrics': new_metrics,
+            'recommendation': recommendation,
+            'improvement': improvement,
+            'output': result.stdout
+        })
+
+    except subprocess.TimeoutExpired:
+        return jsonify({'error': 'Evaluation timed out (5 minutes)'}), 500
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 

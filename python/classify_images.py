@@ -13,6 +13,29 @@ import sys
 import json
 from pathlib import Path
 import pickle
+import numpy as np
+import torch
+from PIL import Image
+from transformers import CLIPProcessor, CLIPModel
+
+# Global cache for CLIP model (lazy-loaded)
+_clip_model = None
+_clip_processor = None
+_device = None
+
+def get_clip_model():
+    """Lazy-load and cache CLIP model"""
+    global _clip_model, _clip_processor, _device
+
+    if _clip_model is None:
+        print("Loading CLIP model...", file=sys.stderr)
+        _device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        _clip_model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32")
+        _clip_processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32")
+        _clip_model.to(_device)
+        _clip_model.eval()
+
+    return _clip_model, _clip_processor, _device
 
 def load_model(model_path='models/classifier.pkl'):
     """Load trained classifier model"""
@@ -42,21 +65,36 @@ def get_embeddings(image_paths):
     """
     Generate CLIP embeddings for images.
 
-    Note: This is a placeholder. In a real implementation, this would:
-    1. Load CLIP model
-    2. Preprocess images
-    3. Generate embeddings
+    Args:
+        image_paths: List of Path objects to image files
 
-    For now, returns dummy embeddings for testing.
+    Returns:
+        numpy array of embeddings (N x 512)
     """
-    try:
-        import numpy as np
-        # Placeholder: return random embeddings for testing
-        # In production, use actual CLIP model here
-        return np.random.randn(len(image_paths), 512)
-    except ImportError:
-        print("Error: numpy not installed", file=sys.stderr)
-        sys.exit(2)
+    model, processor, device = get_clip_model()
+    embeddings = []
+
+    for img_path in image_paths:
+        try:
+            # Load and preprocess image
+            image = Image.open(img_path).convert('RGB')
+            inputs = processor(images=image, return_tensors="pt").to(device)
+
+            # Extract features
+            with torch.no_grad():
+                image_features = model.get_image_features(**inputs)
+
+            # Normalize to unit vector
+            embedding = image_features.cpu().numpy()[0]
+            embedding = embedding / np.linalg.norm(embedding)
+            embeddings.append(embedding)
+
+        except Exception as e:
+            print(f"Warning: Failed to process {img_path}: {e}", file=sys.stderr)
+            # Use zero vector as fallback for failed images
+            embeddings.append(np.zeros(512))
+
+    return np.array(embeddings)
 
 def classify_images(image_dir):
     """Classify all images in directory and return results with confidence"""
@@ -79,7 +117,7 @@ def classify_images(image_dir):
         confidence = float(probabilities[i][pred])  # Confidence for predicted class
         results.append({
             'path': str(img_path),  # Full path for matching with TypeScript
-            'label': 'keep' if pred == 1 else 'exclude',
+            'label': 'keep' if pred == 0 else 'exclude',
             'confidence': confidence
         })
 
