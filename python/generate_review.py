@@ -707,7 +707,15 @@ def generate_html(output_dir: Path, report: Dict) -> str:
                 const result = await response.json();
 
                 if (result.success) {{
-                    showFeedback(`✓ Moved ${{result.movedCount}} images to training data. Click "Retrain Model" to update the classifier.`, 'success');
+                    // Add to history
+                    actionHistory.add(
+                        'correction',
+                        `Submitted ${{result.movedCount}} correction${{result.movedCount === 1 ? '' : 's'}}`,
+                        'success'
+                    );
+
+                    // Brief toast (2 seconds)
+                    showFeedback(`✓ Corrections submitted`, 'success', 2000);
 
                     // Clear modifications
                     modifications.clear();
@@ -720,12 +728,27 @@ def generate_html(output_dir: Path, report: Dict) -> str:
                     submitBtn.disabled = true;
                     submitBtn.textContent = 'Submit Corrections';
                 }} else {{
-                    showFeedback(`✗ Error: ${{result.error}}`, 'error');
+                    // Add error to history
+                    actionHistory.add(
+                        'correction',
+                        `Failed to submit: ${{result.error}}`,
+                        'error'
+                    );
+
+                    // Longer error toast (10 seconds)
+                    showFeedback(`✗ Error: ${{result.error}}`, 'error', 10000);
                     submitBtn.disabled = false;
                     submitBtn.textContent = `Submit Corrections (${{modifications.size}})`;
                 }}
             }} catch (error) {{
-                showFeedback(`✗ Failed to submit corrections: ${{error.message}}`, 'error');
+                // Add error to history
+                actionHistory.add(
+                    'correction',
+                    `Failed to submit: ${{error.message}}`,
+                    'error'
+                );
+
+                showFeedback(`✗ Failed to submit corrections: ${{error.message}}`, 'error', 10000);
                 submitBtn.disabled = false;
                 submitBtn.textContent = `Submit Corrections (${{modifications.size}})`;
             }}
@@ -736,7 +759,7 @@ def generate_html(output_dir: Path, report: Dict) -> str:
             try {{
                 retrainBtn.disabled = true;
                 retrainBtn.textContent = 'Training...';
-                showFeedback('Training model, this may take a few minutes...', 'success');
+                showFeedback('Training model...', 'success', 3000);
 
                 const response = await fetch('/api/retrain', {{
                     method: 'POST'
@@ -746,27 +769,44 @@ def generate_html(output_dir: Path, report: Dict) -> str:
 
                 if (result.success) {{
                     const metrics = result.metrics;
-                    showFeedback(
-                        `✓ Model retrained! Accuracy: ${{metrics.accuracy}}, Precision: ${{metrics.precision}}, Recall: ${{metrics.recall}}`,
-                        'success'
-                    );
+                    const message = `Retrained: ${{metrics.accuracy}} accuracy`;
+
+                    // Add to history
+                    actionHistory.add('retrain', message, 'success');
+
+                    // Brief toast
+                    showFeedback(`✓ Model retrained successfully`, 'success', 2000);
                 }} else {{
-                    showFeedback(`✗ Training failed: ${{result.error}}`, 'error');
+                    // Add error to history
+                    actionHistory.add(
+                        'retrain',
+                        `Training failed: ${{result.error}}`,
+                        'error'
+                    );
+
+                    showFeedback(`✗ Training failed: ${{result.error}}`, 'error', 10000);
                 }}
             }} catch (error) {{
-                showFeedback(`✗ Failed to retrain: ${{error.message}}`, 'error');
+                // Add error to history
+                actionHistory.add(
+                    'retrain',
+                    `Training failed: ${{error.message}}`,
+                    'error'
+                );
+
+                showFeedback(`✗ Failed to retrain: ${{error.message}}`, 'error', 10000);
             }} finally {{
                 retrainBtn.disabled = false;
                 retrainBtn.textContent = 'Retrain Model';
             }}
         }});
 
-        function showFeedback(message, type) {{
+        function showFeedback(message, type, duration = 8000) {{
             feedback.textContent = message;
             feedback.className = `feedback show ${{type}}`;
             setTimeout(() => {{
                 feedback.classList.remove('show');
-            }}, 8000);
+            }}, duration);
         }}
     </script>
 </body>
