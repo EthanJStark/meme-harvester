@@ -234,6 +234,28 @@ def generate_html(output_dir: Path, report: Dict) -> str:
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
         }}
 
+        /* Confidence bar */
+        .confidence-bar {{
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            z-index: 10;
+        }}
+
+        .confidence-bar.low {{
+            background: linear-gradient(to right, #f87171 0%, #ef4444 100%);
+        }}
+
+        .confidence-bar.medium {{
+            background: linear-gradient(to right, #fbbf24 0%, #f59e0b 100%);
+        }}
+
+        .confidence-bar.high {{
+            background: linear-gradient(to right, #4ade80 0%, #22c55e 100%);
+        }}
+
         .card.keep {{
             border-color: #4ade80;
         }}
@@ -461,8 +483,22 @@ def generate_html(output_dir: Path, report: Dict) -> str:
     for frame in keep_frames:
         filename = Path(frame['path']).name
         confidence = frame.get('classification', {}).get('confidence', 0)
+
+        # Determine confidence level for bar
+        if confidence > 0:
+            if confidence < 0.5:
+                conf_class = 'low'
+            elif confidence < 0.8:
+                conf_class = 'medium'
+            else:
+                conf_class = 'high'
+            conf_bar = f'<div class="confidence-bar {conf_class}"></div>'
+        else:
+            conf_bar = ''  # No bar if no confidence data
+
         html += f"""
             <div class="card keep" data-filename="{filename}" data-original-label="keep" data-confidence="{confidence}">
+                {conf_bar}
                 <img src="{filename}" alt="{filename}">
                 <div class="card-footer">
                     <div class="label keep">Keep</div>
@@ -488,8 +524,22 @@ def generate_html(output_dir: Path, report: Dict) -> str:
     for frame in exclude_frames:
         filename = Path(frame['path']).name
         confidence = frame.get('classification', {}).get('confidence', 0)
+
+        # Determine confidence level for bar
+        if confidence > 0:
+            if confidence < 0.5:
+                conf_class = 'low'
+            elif confidence < 0.8:
+                conf_class = 'medium'
+            else:
+                conf_class = 'high'
+            conf_bar = f'<div class="confidence-bar {conf_class}"></div>'
+        else:
+            conf_bar = ''  # No bar if no confidence data
+
         html += f"""
             <div class="card exclude" data-filename="{filename}" data-original-label="exclude" data-confidence="{confidence}">
+                {conf_bar}
                 <img src="{filename}" alt="{filename}">
                 <div class="card-footer">
                     <div class="label exclude">Exclude</div>
