@@ -7,10 +7,12 @@ import { existsSync } from 'fs';
 import { isUrl } from './lib/download/ytdlp.js';
 
 async function validateConfig(config: Config): Promise<void> {
-  // Check inputs exist (skip validation for URLs)
-  for (const input of config.inputs) {
-    if (!isUrl(input) && !existsSync(input)) {
-      throw new Error(`Input file not found: ${input}`);
+  // Check inputs exist (skip validation for URLs and channel mode)
+  if (config.inputs) {
+    for (const input of config.inputs) {
+      if (!isUrl(input) && !existsSync(input)) {
+        throw new Error(`Input file not found: ${input}`);
+      }
     }
   }
 
@@ -28,6 +30,11 @@ async function validateConfig(config: Config): Promise<void> {
   if (!['jpg', 'png'].includes(config.format)) {
     throw new Error('--format must be jpg or png');
   }
+
+  // Check concurrency is positive
+  if (config.concurrency <= 0) {
+    throw new Error('--concurrency must be positive');
+  }
 }
 
 export function parseArgs(argv: string[]): Config {
@@ -39,6 +46,9 @@ export function parseArgs(argv: string[]): Config {
     .version('1.0.0')
     .argument('[input...]', 'input video file(s)')
     .option('--url <url>', 'download and process video from URL (using yt-dlp)')
+    .option('--channel <url>', 'process all videos from YouTube channel')
+    .option('--concurrency <n>', 'concurrent video processing limit (channel mode only)', '2')
+    .option('--channel-timeout <ms>', 'channel discovery timeout in milliseconds', '60000')
     .option('--output <dir>', 'output directory', 'OUTPUT')
     .option('--min-freeze <seconds>', 'minimum freeze duration (freezedetect d)', '0.5')
     .option('--noise <dB>', 'freeze detection noise threshold (freezedetect n)', '-60dB')
@@ -55,17 +65,44 @@ export function parseArgs(argv: string[]): Config {
   const fileInputs = program.args;
 
   // Validate mutually exclusive inputs
-  if (opts.url && fileInputs.length > 0) {
-    throw new Error('Cannot specify both --url and file inputs');
+  const hasFileInputs = fileInputs.length > 0;
+  const hasUrl = !!opts.url;
+  const hasChannel = !!opts.channel;
+
+  const inputModeCount = [hasFileInputs, hasUrl, hasChannel].filter(Boolean).length;
+
+  if (inputModeCount === 0) {
+    throw new Error('Must specify either file input(s), --url, or --channel');
   }
-  if (!opts.url && fileInputs.length === 0) {
-    throw new Error('Must specify either --url or file input(s)');
+  if (inputModeCount > 1) {
+    throw new Error('Cannot combine file inputs, --url, and --channel (only one input mode allowed)');
   }
 
-  const inputs = opts.url ? [opts.url] : fileInputs;
+  // Validate channel URL format if provided
+  if (hasChannel) {
+    const channelPatterns = [
+      /@[\w-]+/,           // @username
+      /\/channel\/[\w-]+/, // /channel/ID
+      /\/c\/[\w-]+/        // /c/name
+    ];
+    const isValidChannelUrl = channelPatterns.some(pattern => pattern.test(opts.channel));
+    if (!isValidChannelUrl) {
+      throw new Error(
+        'Invalid channel URL format. Expected patterns:\n' +
+        '  - https://www.youtube.com/@username\n' +
+        '  - https://www.youtube.com/channel/CHANNEL_ID\n' +
+        '  - https://www.youtube.com/c/channelname'
+      );
+    }
+  }
+
+  const inputs = hasUrl ? [opts.url] : hasChannel ? undefined : fileInputs;
 
   return {
     inputs,
+    channelUrl: opts.channel,
+    concurrency: parseInt(opts.concurrency, 10),
+    channelTimeout: parseInt(opts.channelTimeout, 10),
     output: opts.output,
     minFreeze: parseFloat(opts.minFreeze),
     noise: opts.noise,

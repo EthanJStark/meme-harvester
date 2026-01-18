@@ -61,10 +61,31 @@ export interface Report {
 }
 
 /**
+ * Information about a YouTube channel
+ */
+export interface ChannelInfo {
+  channelName: string;
+  channelUrl: string;
+  videos: Array<{ url: string; title: string }>;
+}
+
+/**
+ * Result of processing an entire channel
+ */
+export interface ChannelResult {
+  channelInfo: ChannelInfo;
+  results: InputResult[];
+  errors: Array<{ url: string; title: string; error: string }>;
+}
+
+/**
  * CLI configuration options
  */
 export interface Config {
-  inputs: string[];
+  inputs?: string[]; // Optional in channel mode
+  channelUrl?: string; // Channel mode
+  concurrency: number; // Parallel processing limit
+  channelTimeout: number; // Channel discovery timeout (ms)
   output: string;
   minFreeze: number;
   noise: string;

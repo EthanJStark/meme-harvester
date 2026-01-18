@@ -11,11 +11,19 @@ import {
   getNextScanNumber,
   getStillsDir
 } from '../utils/fs.js';
+import {
+  getChannelVideoPath,
+  getChannelStillPath,
+  ensureChannelVideoDir
+} from '../utils/channel-fs.js';
 import { logger } from '../utils/logger.js';
 import type { Config, InputResult, Frame } from './types.js';
 import { basename, extname, join } from 'path';
 import { execa } from 'execa';
 import { validateYtDlp, downloadUrl, isUrl } from './download/ytdlp.js';
+import { getChannelVideos } from './download/channel.js';
+import { processChannelVideos } from './parallel.js';
+import { writeChannelReport } from './channel-report.js';
 import { tmpdir } from 'os';
 import { mkdtemp, rm } from 'fs/promises';
 import { sep } from 'path';
@@ -31,14 +39,27 @@ async function validateFFmpeg(): Promise<void> {
 export async function processVideo(
   inputPath: string,
   config: Config,
-  sourceUrl?: string
+  sourceUrl?: string,
+  channelContext?: { channelName: string; videoTitle: string }
 ): Promise<InputResult> {
   logger.info(`Processing: ${inputPath}`);
 
-  // Determine scan number
-  const videoName = basename(inputPath, extname(inputPath));
-  const scanNumber = await getNextScanNumber(config.output, videoName);
-  logger.info(`  Scan number: ${scanNumber}`);
+  // Determine scan number and output paths
+  let scanNumber: number;
+  let stillsDir: string;
+
+  if (channelContext) {
+    // Channel mode: use fixed scan number and channel-specific paths
+    scanNumber = 1;
+    stillsDir = getChannelVideoPath(config.output, channelContext.channelName, channelContext.videoTitle);
+    logger.verbose(`  Channel mode: ${channelContext.channelName}/${channelContext.videoTitle}`);
+  } else {
+    // Single video mode: calculate scan number
+    const videoName = basename(inputPath, extname(inputPath));
+    scanNumber = await getNextScanNumber(config.output, videoName);
+    stillsDir = getStillsDir(config.output, inputPath, scanNumber);
+    logger.info(`  Scan number: ${scanNumber}`);
+  }
 
   // 1. Probe video
   const probe = await probeVideo(inputPath);
@@ -67,16 +88,31 @@ export async function processVideo(
   }
 
   // 3. Ensure stills directory
-  await ensureStillsDir(config.output, inputPath, scanNumber);
+  if (channelContext) {
+    await ensureChannelVideoDir(config.output, channelContext.channelName, channelContext.videoTitle);
+  } else {
+    await ensureStillsDir(config.output, inputPath, scanNumber);
+  }
 
   // 4. Extract and hash frames
   const frames: Frame[] = [];
-  const stillsDir = getStillsDir(config.output, inputPath, scanNumber);
 
   for (let i = 0; i < intervals.length; i++) {
     const interval = intervals[i];
     const timestamp = calculateTimestamp(interval.startSec, interval.endSec, probe.durationSec);
-    const outputPath = getStillPath(config.output, inputPath, scanNumber, i + 1, config.format);
+
+    let outputPath: string;
+    if (channelContext) {
+      outputPath = getChannelStillPath(
+        config.output,
+        channelContext.channelName,
+        channelContext.videoTitle,
+        i + 1,
+        config.format
+      );
+    } else {
+      outputPath = getStillPath(config.output, inputPath, scanNumber, i + 1, config.format);
+    }
 
     logger.info(`  Extracting frame ${i + 1}/${intervals.length} at ${timestamp.toFixed(2)}s`);
     await extractFrame(inputPath, timestamp, outputPath, config.format);
@@ -118,7 +154,48 @@ export async function processVideo(
   };
 }
 
-export async function runPipeline(config: Config): Promise<void> {
+/**
+ * Process an entire YouTube channel
+ */
+async function processChannel(config: Config): Promise<void> {
+  if (!config.channelUrl) {
+    throw new Error('Channel URL is required for channel mode');
+  }
+
+  await validateFFmpeg();
+  await validateYtDlp();
+
+  logger.info('Meme Harvester v1.0.0 - Channel Mode');
+  logger.info(`Output directory: ${config.output}`);
+
+  // Ensure output directory exists
+  await ensureOutputDir(config.output);
+
+  // 1. Discover channel videos
+  const channelInfo = await getChannelVideos(config.channelUrl, config.channelTimeout);
+
+  // 2. Process videos in parallel
+  const channelResult = await processChannelVideos(channelInfo, config);
+
+  // 3. Write channel report
+  await writeChannelReport(channelResult, config);
+
+  // 4. Exit with error if all videos failed
+  if (channelResult.results.length === 0) {
+    throw new Error('All channel videos failed to process');
+  }
+
+  logger.info('Complete!');
+}
+
+/**
+ * Process single video(s)
+ */
+async function processSingleVideo(config: Config): Promise<void> {
+  if (!config.inputs || config.inputs.length === 0) {
+    throw new Error('No inputs provided for single video mode');
+  }
+
   await validateFFmpeg();
 
   logger.info('Meme Harvester v1.0.0');
@@ -186,5 +263,14 @@ export async function runPipeline(config: Config): Promise<void> {
     logger.info(`Completed with ${errors.length} error(s)`);
   } else {
     logger.info('Complete!');
+  }
+}
+
+export async function runPipeline(config: Config): Promise<void> {
+  // Route to correct mode based on config
+  if (config.channelUrl) {
+    await processChannel(config);
+  } else {
+    await processSingleVideo(config);
   }
 }
