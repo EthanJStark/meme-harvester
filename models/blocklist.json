@@ -2,10 +2,16 @@
   "version": 1,
   "entries": [
     {
-      "hash": "c0c0e0f0f8fcfffe",
+      "hash": "1100000011000000111000001111000011111000111111001111111111111110",
       "description": "Photosensitive epilepsy warning",
       "source": "Bad_Gear_-_Why_did_I_BUY_THIS/1/still_0001.jpg",
       "addedAt": "2026-01-18T09:47:00.000Z"
+    },
+    {
+      "hash": "0000000011011111000100100100001000000001111000010111001011100001",
+      "description": "Epilepsy warning screen - flashing images disclaimer",
+      "source": "OUTPUT/Bad_Gear_-_Why_did_they_do_this/3/still_0001.jpg",
+      "addedAt": "2026-01-18T15:40:55.303Z"
     }
   ]
 }
