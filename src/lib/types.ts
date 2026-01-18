@@ -9,6 +9,23 @@ export interface FreezeInterval {
 }
 
 /**
+ * Classification result for a single frame
+ */
+export interface ClassificationResult {
+  path: string;
+  label: 'keep' | 'exclude';
+  confidence: number;
+}
+
+/**
+ * Classification data in frame report
+ */
+export interface Classification {
+  label: 'keep' | 'exclude';
+  confidence: number;
+}
+
+/**
  * Represents an extracted frame from a freeze interval
  */
 export interface Frame {
@@ -20,6 +37,7 @@ export interface Frame {
   hashAlgo: string;
   hashBits: number;
   isCanonical: boolean;
+  classification?: Classification | null;
 }
 
 /**
@@ -95,4 +113,5 @@ export interface Config {
   keepDuplicates: boolean;
   json: string;
   verbose: boolean;
+  classify: boolean;
 }
