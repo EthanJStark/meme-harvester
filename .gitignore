@@ -10,3 +10,15 @@ dist-pkg/
 
 # Bundle build artifacts
 build/
+
+# Python
+python/venv/
+python/__pycache__/
+python/*.pyc
+
+# Models
+models/*.pkl
+models/*.pth
+
+# Training data (optional - may want to track)
+# training-data/
