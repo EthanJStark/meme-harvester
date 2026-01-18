@@ -452,7 +452,7 @@ def generate_html(output_dir: Path, report: Dict) -> str:
     <div class="section">
         <div class="section-header">
             <h2 class="section-title keep">Keep</h2>
-            <span class="section-count">{len(keep_frames)} images</span>
+            <span class="section-count">{len(keep_frames)} images (sorted by confidence ↑)</span>
         </div>
         <div class="grid" id="keep-grid">
 """
@@ -462,7 +462,7 @@ def generate_html(output_dir: Path, report: Dict) -> str:
         filename = Path(frame['path']).name
         confidence = frame.get('classification', {}).get('confidence', 0)
         html += f"""
-            <div class="card keep" data-filename="{filename}" data-original-label="keep">
+            <div class="card keep" data-filename="{filename}" data-original-label="keep" data-confidence="{confidence}">
                 <img src="{filename}" alt="{filename}">
                 <div class="card-footer">
                     <div class="label keep">Keep</div>
@@ -479,7 +479,7 @@ def generate_html(output_dir: Path, report: Dict) -> str:
     <div class="section">
         <div class="section-header">
             <h2 class="section-title exclude">Exclude</h2>
-            <span class="section-count">{len(exclude_frames)} images</span>
+            <span class="section-count">{len(exclude_frames)} images (sorted by confidence ↑)</span>
         </div>
         <div class="grid" id="exclude-grid">
 """
@@ -489,7 +489,7 @@ def generate_html(output_dir: Path, report: Dict) -> str:
         filename = Path(frame['path']).name
         confidence = frame.get('classification', {}).get('confidence', 0)
         html += f"""
-            <div class="card exclude" data-filename="{filename}" data-original-label="exclude">
+            <div class="card exclude" data-filename="{filename}" data-original-label="exclude" data-confidence="{confidence}">
                 <img src="{filename}" alt="{filename}">
                 <div class="card-footer">
                     <div class="label exclude">Exclude</div>
@@ -643,6 +643,67 @@ def generate_html(output_dir: Path, report: Dict) -> str:
         document.getElementById('clear-history-btn').addEventListener('click', () => {{
             actionHistory.clear();
         }});
+
+        // Confidence-based sorting
+        function sortImagesByConfidence() {{
+            const keepGrid = document.getElementById('keep-grid');
+            const excludeGrid = document.getElementById('exclude-grid');
+
+            sortGrid(keepGrid);
+            sortGrid(excludeGrid);
+        }}
+
+        function sortGrid(grid) {{
+            const cards = Array.from(grid.querySelectorAll('.card'));
+
+            // Check if any cards have confidence > 0
+            const hasConfidence = cards.some(card =>
+                parseFloat(card.dataset.confidence || 0) > 0
+            );
+
+            if (!hasConfidence) {{
+                // Show warning banner
+                showConfidenceWarning();
+                return; // Keep original order (by filename)
+            }}
+
+            // Sort by confidence (lowest first), then by filename
+            cards.sort((a, b) => {{
+                const confA = parseFloat(a.dataset.confidence || 0);
+                const confB = parseFloat(b.dataset.confidence || 0);
+
+                if (confA !== confB) {{
+                    return confA - confB; // Lowest first
+                }}
+
+                // Secondary sort by filename
+                return a.dataset.filename.localeCompare(b.dataset.filename);
+            }});
+
+            // Re-append in sorted order
+            cards.forEach(card => grid.appendChild(card));
+        }}
+
+        function showConfidenceWarning() {{
+            const header = document.querySelector('.header');
+            if (!document.getElementById('confidence-warning')) {{
+                const warning = document.createElement('div');
+                warning.id = 'confidence-warning';
+                warning.style.cssText = `
+                    background: #7f1d1d;
+                    color: #fca5a5;
+                    border: 1px solid #ef4444;
+                    padding: 12px;
+                    border-radius: 6px;
+                    margin-top: 15px;
+                `;
+                warning.textContent = '⚠️ Confidence data unavailable - images sorted by filename';
+                header.appendChild(warning);
+            }}
+        }}
+
+        // Sort on page load
+        sortImagesByConfidence();
 
         // Track modifications
         const modifications = new Map();
