@@ -227,6 +227,62 @@ harvest --url "https://example.com/video"
 
 ---
 
+### Process Entire YouTube Channels
+
+Want to harvest from all videos in a channel at once? Use channel mode:
+
+```bash
+# Process all videos from a YouTube channel
+harvest --channel "https://www.youtube.com/@AudioPilz"
+```
+
+**Channel mode features:**
+- Automatically discovers all videos in the channel
+- Processes videos in parallel (configurable concurrency)
+- Continues processing even if individual videos fail
+- Organizes output by channel and video name
+- Creates aggregate report with success/failure stats
+
+**Adjust concurrency:**
+```bash
+# Process 4 videos at once (default is 2)
+harvest --channel "https://www.youtube.com/@channel" --concurrency 4
+```
+
+**Channel URL formats supported:**
+- `https://www.youtube.com/@username`
+- `https://www.youtube.com/channel/CHANNEL_ID`
+- `https://www.youtube.com/c/channelname`
+
+**Output structure:**
+```
+OUTPUT/
+└── AudioPilz/                    # Channel name
+    ├── video-title-1/
+    │   ├── still_0001.jpg
+    │   ├── still_0002.jpg
+    │   └── report.json           # Per-video report
+    ├── video-title-2/
+    │   ├── still_0001.jpg
+    │   └── report.json
+    └── channel-report.json       # Aggregate report
+```
+
+**⚠️ Important: Channel Mode Overwrites**
+
+Channel mode doesn't use scan numbers like single-video mode. Running the same channel twice will **overwrite previous results**.
+
+To keep multiple runs:
+```bash
+# First run
+harvest --channel "https://youtube.com/@channel" --output ./run1
+
+# Second run with different parameters
+harvest --channel "https://youtube.com/@channel" --output ./run2 --min-freeze 1.0
+```
+
+---
+
 ### Process Local Video Files
 
 Already have a video file? Use it directly:
