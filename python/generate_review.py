@@ -525,6 +525,125 @@ def generate_html(output_dir: Path, report: Dict) -> str:
     <!-- END container -->
 
     <script>
+        // Action History Management
+        class ActionHistory {{
+            constructor(storageKey) {{
+                this.storageKey = storageKey;
+                this.entries = this.load();
+                this.render();
+            }}
+
+            add(type, message, status = 'success') {{
+                const entry = {{
+                    timestamp: new Date().toISOString(),
+                    type,      // 'correction' | 'retrain'
+                    message,
+                    status     // 'success' | 'error'
+                }};
+                this.entries.unshift(entry); // Add to beginning
+                this.prune(); // Keep only last 50
+                this.save();
+                this.render();
+                this.scrollToTop();
+            }}
+
+            load() {{
+                try {{
+                    const data = localStorage.getItem(this.storageKey);
+                    return data ? JSON.parse(data) : [];
+                }} catch (error) {{
+                    console.error('Failed to load history:', error);
+                    return [];
+                }}
+            }}
+
+            save() {{
+                try {{
+                    localStorage.setItem(this.storageKey, JSON.stringify(this.entries));
+                }} catch (error) {{
+                    console.error('Failed to save history:', error);
+                }}
+            }}
+
+            prune() {{
+                if (this.entries.length > 50) {{
+                    this.entries = this.entries.slice(0, 50);
+                }}
+            }}
+
+            clear() {{
+                if (confirm('Clear action history? This cannot be undone.')) {{
+                    this.entries = [];
+                    this.save();
+                    this.render();
+                }}
+            }}
+
+            render() {{
+                const content = document.getElementById('sidebar-content');
+                const entryCount = document.getElementById('entry-count');
+
+                if (this.entries.length === 0) {{
+                    content.innerHTML = '<div class="empty-state">No actions yet. Make corrections and submit to see history here.</div>';
+                    entryCount.textContent = '0 entries';
+                    return;
+                }}
+
+                const entriesHtml = this.entries.map(entry => {{
+                    const icon = this.getIcon(entry.type, entry.status);
+                    const timestamp = this.formatTimestamp(entry.timestamp);
+                    const errorClass = entry.status === 'error' ? ' error' : '';
+
+                    return `
+                        <div class="history-entry${{errorClass}}">
+                            <div class="entry-timestamp">${{icon}} ${{timestamp}}</div>
+                            <div class="entry-message">${{entry.message}}</div>
+                        </div>
+                    `;
+                }}).join('');
+
+                content.innerHTML = entriesHtml;
+                entryCount.textContent = `${{this.entries.length}} ${{this.entries.length === 1 ? 'entry' : 'entries'}}`;
+            }}
+
+            getIcon(type, status) {{
+                if (status === 'error') return '✗';
+                if (type === 'correction') return '📝';
+                if (type === 'retrain') return '🔄';
+                return '•';
+            }}
+
+            formatTimestamp(isoString) {{
+                const date = new Date(isoString);
+                const now = new Date();
+                const diffMs = now - date;
+                const diffMins = Math.floor(diffMs / 60000);
+
+                if (diffMins < 1) return 'Just now';
+                if (diffMins < 60) return `${{diffMins}} min ago`;
+
+                return date.toLocaleTimeString('en-US', {{
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit'
+                }});
+            }}
+
+            scrollToTop() {{
+                const content = document.getElementById('sidebar-content');
+                content.scrollTo({{ top: 0, behavior: 'smooth' }});
+            }}
+        }}
+
+        // Initialize action history
+        const storageKey = `action-history-${{window.location.pathname}}`;
+        const actionHistory = new ActionHistory(storageKey);
+
+        // Clear history button
+        document.getElementById('clear-history-btn').addEventListener('click', () => {{
+            actionHistory.clear();
+        }});
+
         // Track modifications
         const modifications = new Map();
 
