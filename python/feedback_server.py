@@ -34,6 +34,19 @@ def serve_review():
     return send_file(review_html)
 
 
+@app.route('/<filename>')
+def serve_static(filename):
+    """Serve static files (images) from the output directory."""
+    # Only serve image files to avoid intercepting API routes
+    if not any(filename.lower().endswith(ext) for ext in ['.jpg', '.jpeg', '.png', '.gif']):
+        return jsonify({'error': 'Not found'}), 404
+
+    file_path = OUTPUT_DIR / filename
+    if not file_path.exists() or not file_path.is_file():
+        return jsonify({'error': f'File not found: {filename}'}), 404
+    return send_file(file_path)
+
+
 @app.route('/api/corrections', methods=['POST'])
 def handle_corrections():
     """
