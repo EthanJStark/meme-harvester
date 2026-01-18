@@ -95,44 +95,61 @@ export async function processVideo(
     await ensureStillsDir(config.output, inputPath, scanNumber);
   }
 
-  // 4. Extract and hash frames
+  // 4. Extract and hash frames in parallel batches
   const frames: Frame[] = [];
 
-  for (let i = 0; i < intervals.length; i++) {
-    const interval = intervals[i];
-    const timestamp = calculateTimestamp(interval.startSec, interval.endSec, probe.durationSec);
+  // Extract frames in parallel (batch size 5)
+  const BATCH_SIZE = 5;
 
-    let outputPath: string;
-    if (channelContext) {
-      outputPath = getChannelStillPath(
-        config.output,
-        channelContext.channelName,
-        channelContext.videoTitle,
-        i + 1,
-        config.format
-      );
-    } else {
-      outputPath = getStillPath(config.output, inputPath, scanNumber, i + 1, config.format);
-    }
+  for (let batchStart = 0; batchStart < intervals.length; batchStart += BATCH_SIZE) {
+    const batchEnd = Math.min(batchStart + BATCH_SIZE, intervals.length);
+    const batch = intervals.slice(batchStart, batchEnd);
 
-    logger.info(`  Extracting frame ${i + 1}/${intervals.length} at ${timestamp.toFixed(2)}s`);
-    await extractFrame(inputPath, timestamp, outputPath, config.format);
+    logger.verbose(
+      `  Extracting frames ${batchStart + 1}-${batchEnd} (batch of ${batch.length})`
+    );
 
-    const hashResult = await computeHash(outputPath);
+    // Process batch in parallel
+    const batchFrames = await Promise.all(
+      batch.map(async (interval, batchIndex) => {
+        const i = batchStart + batchIndex;
+        const timestamp = calculateTimestamp(interval.startSec, interval.endSec, probe.durationSec);
 
-    // Calculate relative path from output root
-    const relativePath = outputPath.replace(config.output + '/', '');
+        let outputPath: string;
+        if (channelContext) {
+          outputPath = getChannelStillPath(
+            config.output,
+            channelContext.channelName,
+            channelContext.videoTitle,
+            i + 1,
+            config.format
+          );
+        } else {
+          outputPath = getStillPath(config.output, inputPath, scanNumber, i + 1, config.format);
+        }
 
-    frames.push({
-      id: `frm_${String(i + 1).padStart(3, '0')}`,
-      intervalId: interval.id,
-      timestampSec: timestamp,
-      file: relativePath,
-      hash: hashResult.hash,
-      hashAlgo: hashResult.hashAlgo,
-      hashBits: hashResult.hashBits,
-      isCanonical: false
-    });
+        logger.info(`  Extracting frame ${i + 1}/${intervals.length} at ${timestamp.toFixed(2)}s`);
+        await extractFrame(inputPath, timestamp, outputPath, config.format);
+
+        const hashResult = await computeHash(outputPath);
+
+        // Calculate relative path from output root
+        const relativePath = outputPath.replace(config.output + '/', '');
+
+        return {
+          id: `frm_${String(i + 1).padStart(3, '0')}`,
+          intervalId: interval.id,
+          timestampSec: timestamp,
+          file: relativePath,
+          hash: hashResult.hash,
+          hashAlgo: hashResult.hashAlgo,
+          hashBits: hashResult.hashBits,
+          isCanonical: false
+        };
+      })
+    );
+
+    frames.push(...batchFrames);
   }
 
   // 5. Deduplicate
