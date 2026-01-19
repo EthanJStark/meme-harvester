@@ -20,6 +20,7 @@ python/*.pyc
 models/*.pkl
 models/*.pth
 models/classifier.meta.json
+models/archive/
 
 # Training data
 training-data/
