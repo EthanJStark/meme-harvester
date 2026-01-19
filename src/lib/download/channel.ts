@@ -42,12 +42,14 @@ function extractChannelName(channelUrl: string): string {
  * Retrieves all video URLs and titles from a YouTube channel
  * @param channelUrl - The YouTube channel URL
  * @param timeoutMs - Timeout in milliseconds (default: 60000)
+ * @param maxVideos - Optional limit on number of videos to return (for testing)
  * @returns Channel information including video list
  * @throws {Error} If channel discovery fails or channel is empty
  */
 export async function getChannelVideos(
   channelUrl: string,
-  timeoutMs: number = 60000
+  timeoutMs: number = 60000,
+  maxVideos?: number
 ): Promise<ChannelInfo> {
   // Validate URL for security (SSRF protection)
   await validateUrl(channelUrl);
@@ -89,10 +91,17 @@ export async function getChannelVideos(
 
     logger.verbose(`Found ${videos.length} videos in channel ${channelName}`);
 
+    // Limit videos if maxVideos specified (for testing)
+    let limitedVideos = videos;
+    if (maxVideos !== undefined && maxVideos > 0) {
+      logger.info(`Limiting to first ${maxVideos} videos (--max-videos flag)`);
+      limitedVideos = videos.slice(0, maxVideos);
+    }
+
     return {
       channelName,
       channelUrl,
-      videos
+      videos: limitedVideos
     };
   } catch (error) {
     if (error && typeof error === 'object' && 'timedOut' in error && error.timedOut) {

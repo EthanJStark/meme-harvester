@@ -245,7 +245,7 @@ async function processChannel(config: Config): Promise<void> {
   await ensureOutputDir(config.output);
 
   // 1. Discover channel videos
-  const channelInfo = await getChannelVideos(config.channelUrl, config.channelTimeout);
+  const channelInfo = await getChannelVideos(config.channelUrl, config.channelTimeout, config.maxVideos);
 
   // 2. Process videos in parallel
   const channelResult = await processChannelVideos(channelInfo, config);
