@@ -104,6 +104,7 @@ export interface Config {
   channelUrl?: string; // Channel mode
   concurrency: number; // Parallel processing limit
   channelTimeout: number; // Channel discovery timeout (ms)
+  maxVideos?: number; // Limit channel processing (testing only)
   output: string;
   minFreeze: number;
   noise: string;

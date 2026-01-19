@@ -79,6 +79,7 @@ export function parseArgs(argv: string[]): Config {
     .argument('[input...]', 'input video file(s)')
     .option('--url <url>', 'download and process video from URL (using yt-dlp)')
     .option('--channel <url>', 'process all videos from YouTube channel')
+    .option('--max-videos <n>', 'limit channel processing to first N videos (testing only)', (val) => parseInt(val, 10))
     .option('--concurrency <n>', 'concurrent video processing limit (channel mode only)', '2')
     .option('--channel-timeout <ms>', 'channel discovery timeout in milliseconds', '60000')
     .option('--output <dir>', 'output directory', 'OUTPUT')
@@ -138,6 +139,7 @@ export function parseArgs(argv: string[]): Config {
     channelUrl: opts.channel,
     concurrency: parseInt(opts.concurrency, 10),
     channelTimeout: parseInt(opts.channelTimeout, 10),
+    maxVideos: opts.maxVideos,
     output: opts.output,
     minFreeze: parseFloat(opts.minFreeze),
     noise: opts.noise,
