@@ -53,8 +53,8 @@ def load_images(image_dir):
         print(f"Error: Directory not found: {image_dir}", file=sys.stderr)
         sys.exit(1)
 
-    # Get all .jpg and .png files
-    image_paths = sorted(list(image_dir.glob('*.jpg')) + list(image_dir.glob('*.png')))
+    # Get all .jpg and .png files (recursively search subdirectories)
+    image_paths = sorted(list(image_dir.glob('**/*.jpg')) + list(image_dir.glob('**/*.png')))
     if not image_paths:
         print(f"Error: No images found in {image_dir}", file=sys.stderr)
         sys.exit(1)
