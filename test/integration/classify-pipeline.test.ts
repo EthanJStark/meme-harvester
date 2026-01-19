@@ -49,7 +49,7 @@ from pathlib import Path
 
 # Mock classification: alternate between keep/exclude
 image_dir = sys.argv[1]
-images = sorted(Path(image_dir).glob('*.jpg'))
+images = sorted(Path(image_dir).glob('**/*.jpg'))
 results = []
 
 for i, img_path in enumerate(images):
