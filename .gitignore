@@ -16,10 +16,8 @@ python/venv/
 python/__pycache__/
 python/*.pyc
 
-# Models
-models/*.pkl
+# Models (allow symlinks to ~/.meme-harvester/, block regular model files)
 models/*.pth
-models/classifier.meta.json
 models/archive/
 
 # Training data
