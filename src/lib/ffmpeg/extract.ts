@@ -38,7 +38,7 @@ export async function extractFrame(
 
   args.push(outputPath);
 
-  await execa('ffmpeg', args);
+  await execa('ffmpeg', args, { buffer: false });
 
   logger.verbose(`Extracted frame: ${outputPath}`);
 }

@@ -1,6 +1,7 @@
 node_modules/
 dist/
 *.log
+harvest-log*.txt
 .DS_Store
 OUTPUT/
 media/

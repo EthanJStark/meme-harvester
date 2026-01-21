@@ -30,6 +30,6 @@ describe('Frame Extraction', () => {
       '-frames:v', '1',
       '-q:v', '2',
       '/tmp/output.jpg'
-    ]);
+    ], { buffer: false });
   });
 });
